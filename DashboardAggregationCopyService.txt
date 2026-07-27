@@ -1,0 +1,88 @@
+package com.msys.vulnerability.aggregation.service;
+
+import org.postgresql.PGConnection;
+import org.postgresql.copy.CopyManager;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+
+@Service
+public class DashboardAggregationCopyService {
+
+    private final DataSource dataSource;
+
+    public DashboardAggregationCopyService(
+            DataSource dataSource) {
+
+        this.dataSource = dataSource;
+    }
+
+    public long copy(Path aggregationFile) {
+
+        String copySql = """
+                COPY vuln.dashboard_aggregation
+                (
+                    import_job_id,
+                    chart_code,
+                    category,
+                    series,
+                    sub_category,
+                    value,
+                    secondary_value,
+                    tertiary_value,
+                    period_start,
+                    sort_order,
+                    payload
+                )
+                FROM STDIN
+                WITH
+                (
+                    FORMAT CSV,
+                    HEADER TRUE,
+                    NULL ''
+                )
+                """;
+
+        try (Connection connection =
+                     dataSource.getConnection();
+             Reader reader =
+                     Files.newBufferedReader(
+                             aggregationFile,
+                             StandardCharsets.UTF_8)) {
+
+            connection.setAutoCommit(false);
+
+            try {
+                PGConnection pgConnection =
+                        connection.unwrap(
+                                PGConnection.class);
+
+                CopyManager copyManager =
+                        pgConnection.getCopyAPI();
+
+                long copied =
+                        copyManager.copyIn(
+                                copySql,
+                                reader);
+
+                connection.commit();
+
+                return copied;
+
+            } catch (Exception exception) {
+                connection.rollback();
+                throw exception;
+            }
+
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Unable to copy dashboard aggregations",
+                    exception);
+        }
+    }
+}

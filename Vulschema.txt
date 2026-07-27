@@ -1,0 +1,151 @@
+CREATE SCHEMA IF NOT EXISTS vuln;
+
+CREATE TABLE vuln.import_definition
+(
+    import_definition_id BIGSERIAL PRIMARY KEY,
+    definition_code      VARCHAR(100) NOT NULL UNIQUE,
+    definition_name      VARCHAR(200) NOT NULL,
+    file_pattern         VARCHAR(500) NOT NULL,
+    file_type            VARCHAR(20) NOT NULL,
+    delimiter            VARCHAR(5) DEFAULT ',',
+    header_present       BOOLEAN NOT NULL DEFAULT TRUE,
+    sheet_name           VARCHAR(200),
+    target_table         VARCHAR(200) NOT NULL,
+    enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vuln.import_column_mapping
+(
+    mapping_id           BIGSERIAL PRIMARY KEY,
+    import_definition_id BIGINT NOT NULL
+        REFERENCES vuln.import_definition(import_definition_id),
+    source_column        VARCHAR(500) NOT NULL,
+    target_column        VARCHAR(200) NOT NULL,
+    data_type            VARCHAR(50) NOT NULL DEFAULT 'VARCHAR',
+    mandatory            BOOLEAN NOT NULL DEFAULT FALSE,
+    default_value        VARCHAR(1000),
+    transform_expression TEXT,
+    display_order        INTEGER NOT NULL DEFAULT 0,
+    enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE(import_definition_id, target_column)
+);
+
+CREATE TABLE vuln.import_job
+(
+    import_job_id        BIGSERIAL PRIMARY KEY,
+    import_definition_id BIGINT
+        REFERENCES vuln.import_definition(import_definition_id),
+    original_filename    VARCHAR(1000) NOT NULL,
+    status               VARCHAR(30) NOT NULL,
+    rows_received        BIGINT DEFAULT 0,
+    rows_accepted        BIGINT DEFAULT 0,
+    rows_rejected        BIGINT DEFAULT 0,
+    error_message        TEXT,
+    started_at           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at         TIMESTAMPTZ
+);
+
+CREATE TABLE vuln.vulnerability_finding
+(
+    finding_id           BIGSERIAL PRIMARY KEY,
+    import_job_id        BIGINT NOT NULL
+        REFERENCES vuln.import_job(import_job_id),
+
+    vulnerability_id     VARCHAR(300),
+    hostname             VARCHAR(500),
+    ip_address           VARCHAR(100),
+    port                 INTEGER,
+    severity             VARCHAR(50),
+    finding_status       VARCHAR(100),
+    mitigation_status    VARCHAR(100),
+    vulnerability_name   TEXT,
+    cve                  VARCHAR(100),
+    cve_description      TEXT,
+    technology           VARCHAR(500),
+    product_name         VARCHAR(500),
+    product_version      VARCHAR(200),
+    kev                  BOOLEAN,
+    epss                 NUMERIC(12,8),
+    internet_facing      BOOLEAN,
+    asset_priority       VARCHAR(100),
+    environment          VARCHAR(100),
+    region               VARCHAR(200),
+    country              VARCHAR(200),
+    it_service           VARCHAR(500),
+    service_owner        VARCHAR(500),
+    l1_department        VARCHAR(500),
+    l2_department        VARCHAR(500),
+    l3_department        VARCHAR(500),
+    l4_department        VARCHAR(500),
+    l5_department        VARCHAR(500),
+    jira_ticket          VARCHAR(200),
+    jira_status          VARCHAR(100),
+    patch_available      BOOLEAN,
+    found_date           DATE,
+    due_date             DATE,
+    resolved_date        DATE,
+
+    raw_record           JSONB,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_finding_import
+    ON vuln.vulnerability_finding(import_job_id);
+
+CREATE INDEX idx_finding_severity
+    ON vuln.vulnerability_finding(severity);
+
+CREATE INDEX idx_finding_service
+    ON vuln.vulnerability_finding(it_service);
+
+CREATE INDEX idx_finding_l5
+    ON vuln.vulnerability_finding(l5_department);
+
+CREATE INDEX idx_finding_kev
+    ON vuln.vulnerability_finding(kev);
+
+CREATE INDEX idx_finding_raw
+    ON vuln.vulnerability_finding
+    USING GIN(raw_record);
+
+CREATE TABLE vuln.dashboard_aggregation_definition
+(
+    aggregation_code VARCHAR(100) PRIMARY KEY,
+    chart_name       VARCHAR(200) NOT NULL,
+    chart_type       VARCHAR(50) NOT NULL,
+    aggregation_sql  TEXT NOT NULL,
+    display_order    INTEGER NOT NULL DEFAULT 0,
+    enabled          BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vuln.dashboard_aggregation
+(
+    aggregation_id BIGSERIAL PRIMARY KEY,
+    import_job_id  BIGINT NOT NULL
+        REFERENCES vuln.import_job(import_job_id),
+
+    chart_code     VARCHAR(100) NOT NULL,
+    category       VARCHAR(1000),
+    series         VARCHAR(500),
+    sub_category   VARCHAR(500),
+
+    value          NUMERIC,
+    secondary_value NUMERIC,
+    tertiary_value NUMERIC,
+
+    period_start   DATE,
+    sort_order     INTEGER DEFAULT 0,
+    payload        JSONB,
+
+    generated_at   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_dashboard_chart
+    ON vuln.dashboard_aggregation
+       (import_job_id, chart_code, sort_order);
+
+CREATE INDEX idx_dashboard_period
+    ON vuln.dashboard_aggregation
+       (chart_code, period_start);

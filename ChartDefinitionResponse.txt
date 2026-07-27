@@ -1,0 +1,8 @@
+package com.msys.vulnerability.aggregation.dto;
+
+public record ChartDefinitionResponse(
+        String code,
+        String name,
+        String type,
+        int displayOrder) {
+}

@@ -1,0 +1,243 @@
+package com.msys.vulnerability.importjob.service;
+
+import com.msys.vulnerability.config.DuckDbConfiguration.DuckDbConnectionFactory;
+import com.msys.vulnerability.exception.ImportException;
+import com.msys.vulnerability.importjob.model.ImportColumnMapping;
+import com.msys.vulnerability.importjob.model.ImportDefinition;
+import org.springframework.stereotype.Service;
+
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+public class DuckDbImportService {
+
+    private final DuckDbConnectionFactory connectionFactory;
+
+    public DuckDbImportService(
+            DuckDbConnectionFactory connectionFactory) {
+
+        this.connectionFactory = connectionFactory;
+    }
+
+    public long normalize(
+            Path duckDbPath,
+            Path sourceFile,
+            ImportDefinition definition)
+            throws Exception {
+
+        try (Connection connection =
+                     connectionFactory.open(duckDbPath);
+             Statement statement =
+                     connection.createStatement()) {
+
+            createRawView(
+                    statement,
+                    sourceFile,
+                    definition);
+
+            validateColumns(
+                    statement,
+                    definition);
+
+            createStageTable(
+                    statement,
+                    definition);
+
+            try (ResultSet resultSet =
+                         statement.executeQuery(
+                                 "SELECT COUNT(*) " +
+                                 "FROM stage_data")) {
+
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
+        }
+    }
+
+    private void createRawView(
+            Statement statement,
+            Path sourceFile,
+            ImportDefinition definition)
+            throws Exception {
+
+        String escapedPath =
+                escape(sourceFile.toAbsolutePath()
+                        .toString());
+
+        String delimiter =
+                escape(definition.delimiter());
+
+        String sql = """
+                CREATE OR REPLACE VIEW raw_data AS
+                SELECT *
+                FROM read_csv(
+                    '%s',
+                    header = %s,
+                    delim = '%s',
+                    all_varchar = TRUE,
+                    ignore_errors = FALSE,
+                    normalize_names = FALSE
+                )
+                """.formatted(
+                escapedPath,
+                definition.headerPresent(),
+                delimiter
+        );
+
+        statement.execute(sql);
+    }
+
+    private void validateColumns(
+            Statement statement,
+            ImportDefinition definition)
+            throws Exception {
+
+        Set<String> availableColumns;
+
+        try (ResultSet resultSet =
+                     statement.executeQuery(
+                             "DESCRIBE raw_data")) {
+
+            java.util.HashSet<String> names =
+                    new java.util.HashSet<>();
+
+            while (resultSet.next()) {
+                names.add(resultSet.getString(
+                        "column_name"));
+            }
+
+            availableColumns = names;
+        }
+
+        String missing =
+                definition.mappings()
+                        .stream()
+                        .filter(
+                                ImportColumnMapping::mandatory)
+                        .map(
+                                ImportColumnMapping::sourceColumn)
+                        .filter(column ->
+                                !availableColumns.contains(column))
+                        .collect(Collectors.joining(", "));
+
+        if (!missing.isBlank()) {
+            throw new ImportException(
+                    "Mandatory columns missing: " +
+                    missing);
+        }
+    }
+
+    private void createStageTable(
+            Statement statement,
+            ImportDefinition definition)
+            throws Exception {
+
+        String selectColumns =
+                definition.mappings()
+                        .stream()
+                        .map(this::buildExpression)
+                        .collect(Collectors.joining(",\n"));
+
+        String sql = """
+                CREATE OR REPLACE TABLE stage_data AS
+                SELECT
+                    %s
+                FROM raw_data
+                """.formatted(selectColumns);
+
+        statement.execute(sql);
+    }
+
+    private String buildExpression(
+            ImportColumnMapping mapping) {
+
+        String source =
+                quoteIdentifier(mapping.sourceColumn());
+
+        String expression;
+
+        if (mapping.transformExpression() != null
+                && !mapping.transformExpression()
+                           .isBlank()) {
+
+            expression =
+                    mapping.transformExpression()
+                           .replace("${SOURCE}", source);
+
+        } else {
+
+            expression = switch (
+                    mapping.dataType()
+                           .toUpperCase()) {
+
+                case "INTEGER" ->
+                        "TRY_CAST(NULLIF(TRIM(" +
+                        source +
+                        "), '') AS INTEGER)";
+
+                case "BIGINT" ->
+                        "TRY_CAST(NULLIF(TRIM(" +
+                        source +
+                        "), '') AS BIGINT)";
+
+                case "DECIMAL", "NUMERIC", "DOUBLE" ->
+                        "TRY_CAST(NULLIF(TRIM(" +
+                        source +
+                        "), '') AS DOUBLE)";
+
+                case "BOOLEAN" ->
+                        """
+                        CASE
+                            WHEN LOWER(TRIM(%s))
+                                 IN ('true','yes','y','1')
+                            THEN TRUE
+                            WHEN LOWER(TRIM(%s))
+                                 IN ('false','no','n','0')
+                            THEN FALSE
+                            ELSE NULL
+                        END
+                        """.formatted(source, source);
+
+                case "DATE" ->
+                        "TRY_CAST(NULLIF(TRIM(" +
+                        source +
+                        "), '') AS DATE)";
+
+                default ->
+                        "NULLIF(TRIM(" +
+                        source +
+                        "), '')";
+            };
+        }
+
+        if (mapping.defaultValue() != null) {
+            expression =
+                    "COALESCE(" +
+                    expression +
+                    ", '" +
+                    escape(mapping.defaultValue()) +
+                    "')";
+        }
+
+        return expression +
+               " AS " +
+               quoteIdentifier(
+                       mapping.targetColumn());
+    }
+
+    private String quoteIdentifier(String value) {
+        return "\"" +
+               value.replace("\"", "\"\"") +
+               "\"";
+    }
+
+    private String escape(String value) {
+        return value.replace("\\", "/")
+                    .replace("'", "''");
+    }
+}

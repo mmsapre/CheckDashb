@@ -1,0 +1,39 @@
+package com.msys.vulnerability.aggregation.controller;
+
+import com.msys.vulnerability.aggregation.dto.ChartDefinitionResponse;
+import com.msys.vulnerability.aggregation.dto.ChartResponse;
+import com.msys.vulnerability.aggregation.service.DashboardQueryService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/dashboard")
+public class DashboardController {
+
+    private final DashboardQueryService service;
+
+    public DashboardController(
+            DashboardQueryService service) {
+
+        this.service = service;
+    }
+
+    @GetMapping("/charts")
+    public List<ChartDefinitionResponse>
+    charts() {
+
+        return service.availableCharts();
+    }
+
+    @GetMapping(
+            "/imports/{importJobId}/charts/{chartCode}")
+    public ChartResponse chart(
+            @PathVariable long importJobId,
+            @PathVariable String chartCode) {
+
+        return service.chart(
+                importJobId,
+                chartCode);
+    }
+}

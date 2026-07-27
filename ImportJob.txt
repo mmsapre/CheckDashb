@@ -1,0 +1,16 @@
+package com.msys.vulnerability.importjob.model;
+
+import java.time.OffsetDateTime;
+
+public record ImportJob(
+        long id,
+        long definitionId,
+        String filename,
+        String status,
+        long rowsReceived,
+        long rowsAccepted,
+        long rowsRejected,
+        String errorMessage,
+        OffsetDateTime startedAt,
+        OffsetDateTime completedAt) {
+}

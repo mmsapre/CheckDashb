@@ -1,0 +1,12 @@
+package com.msys.vulnerability.importjob.model;
+
+public record ImportColumnMapping(
+        long id,
+        String sourceColumn,
+        String targetColumn,
+        String dataType,
+        boolean mandatory,
+        String defaultValue,
+        String transformExpression,
+        int displayOrder) {
+}

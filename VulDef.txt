@@ -1,0 +1,451 @@
+INSERT INTO vuln.dashboard_aggregation_definition
+(
+    aggregation_code,
+    chart_name,
+    chart_type,
+    display_order,
+    aggregation_sql
+)
+VALUES
+(
+    'SEVERITY_DISTRIBUTION',
+    'Severity distribution',
+    'DONUT',
+    10,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH grouped AS
+    (
+        SELECT
+            COALESCE(
+                NULLIF(UPPER(TRIM(severity)), ''),
+                'UNKNOWN'
+            ) AS severity,
+            COUNT(*) AS finding_count
+        FROM stage_data
+        GROUP BY 1
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'SEVERITY_DISTRIBUTION',
+        severity,
+        NULL,
+        NULL,
+        finding_count,
+        ROUND(
+            100.0 * finding_count /
+            NULLIF(SUM(finding_count) OVER (), 0),
+            2
+        ),
+        NULL,
+        NULL,
+        CASE severity
+            WHEN 'CRITICAL' THEN 1
+            WHEN 'HIGH' THEN 2
+            WHEN 'MEDIUM' THEN 3
+            WHEN 'LOW' THEN 4
+            ELSE 5
+        END,
+        NULL
+    FROM grouped
+    $sql$
+),
+(
+    'REMEDIATION_STATUS',
+    'Remediation status',
+    'DONUT',
+    20,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH grouped AS
+    (
+        SELECT
+            COALESCE(
+                NULLIF(UPPER(TRIM(mitigation_status)), ''),
+                'UNKNOWN'
+            ) AS remediation_status,
+            COUNT(*) AS finding_count
+        FROM stage_data
+        GROUP BY 1
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'REMEDIATION_STATUS',
+        remediation_status,
+        NULL,
+        NULL,
+        finding_count,
+        ROUND(
+            100.0 * finding_count /
+            NULLIF(SUM(finding_count) OVER (), 0),
+            2
+        ),
+        NULL,
+        NULL,
+        ROW_NUMBER() OVER (
+            ORDER BY finding_count DESC
+        ),
+        NULL
+    FROM grouped
+    $sql$
+),
+(
+    'TOP_SERVICES',
+    'Top exposed services',
+    'STACKED_BAR',
+    30,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH service_summary AS
+    (
+        SELECT
+            COALESCE(
+                NULLIF(TRIM(it_service), ''),
+                'UNKNOWN'
+            ) AS service,
+            COUNT(*) AS total_count,
+            COUNT(*) FILTER (
+                WHERE UPPER(severity) = 'CRITICAL'
+            ) AS critical_count,
+            COUNT(*) FILTER (
+                WHERE UPPER(severity) = 'HIGH'
+            ) AS high_count,
+            COUNT(*) FILTER (
+                WHERE UPPER(severity) = 'MEDIUM'
+            ) AS medium_count
+        FROM stage_data
+        GROUP BY 1
+    ),
+    ranked AS
+    (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                   ORDER BY total_count DESC
+               ) AS ranking
+        FROM service_summary
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'TOP_SERVICES',
+        service,
+        'TOTAL',
+        NULL,
+        total_count,
+        critical_count,
+        high_count,
+        NULL,
+        ranking,
+        json_object(
+            'medium', medium_count
+        )
+    FROM ranked
+    WHERE ranking <= 10
+    $sql$
+),
+(
+    'TOP_L5_TEAMS',
+    'Top L5 teams',
+    'STACKED_BAR',
+    40,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH team_summary AS
+    (
+        SELECT
+            COALESCE(
+                NULLIF(TRIM(l5_department), ''),
+                'UNKNOWN'
+            ) AS team,
+            COUNT(*) AS total_count,
+            COUNT(*) FILTER (
+                WHERE UPPER(severity) = 'CRITICAL'
+            ) AS critical_count,
+            COUNT(*) FILTER (
+                WHERE UPPER(severity) = 'HIGH'
+            ) AS high_count,
+            COUNT(*) FILTER (
+                WHERE due_date < CURRENT_DATE
+                  AND UPPER(COALESCE(
+                      mitigation_status, 'OPEN'
+                  )) NOT IN (
+                      'MITIGATED',
+                      'RESOLVED',
+                      'CLOSED'
+                  )
+            ) AS overdue_count
+        FROM stage_data
+        GROUP BY 1
+    ),
+    ranked AS
+    (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                   ORDER BY total_count DESC
+               ) AS ranking
+        FROM team_summary
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'TOP_L5_TEAMS',
+        team,
+        NULL,
+        NULL,
+        total_count,
+        critical_count,
+        high_count,
+        NULL,
+        ranking,
+        json_object(
+            'overdue', overdue_count
+        )
+    FROM ranked
+    WHERE ranking <= 10
+    $sql$
+),
+(
+    'TECHNOLOGY_DISTRIBUTION',
+    'Technology distribution',
+    'BAR',
+    50,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH technology_summary AS
+    (
+        SELECT
+            COALESCE(
+                NULLIF(TRIM(technology), ''),
+                'UNKNOWN'
+            ) AS technology_name,
+            COUNT(*) AS total_count,
+            COUNT(*) FILTER (
+                WHERE UPPER(severity) = 'CRITICAL'
+            ) AS critical_count,
+            COUNT(*) FILTER (
+                WHERE kev = TRUE
+            ) AS kev_count
+        FROM stage_data
+        GROUP BY 1
+    ),
+    ranked AS
+    (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                   ORDER BY total_count DESC
+               ) AS ranking
+        FROM technology_summary
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'TECHNOLOGY_DISTRIBUTION',
+        technology_name,
+        NULL,
+        NULL,
+        total_count,
+        critical_count,
+        kev_count,
+        NULL,
+        ranking,
+        NULL
+    FROM ranked
+    WHERE ranking <= 15
+    $sql$
+),
+(
+    'MONTHLY_TREND',
+    'Monthly vulnerability trend',
+    'LINE',
+    60,
+    $sql$
+    INSERT INTO dashboard_result
+    SELECT
+        ${IMPORT_JOB_ID},
+        'MONTHLY_TREND',
+        STRFTIME(
+            DATE_TRUNC('month', found_date),
+            '%Y-%m'
+        ),
+        'DETECTED',
+        NULL,
+        COUNT(*),
+        COUNT(*) FILTER (
+            WHERE UPPER(COALESCE(
+                mitigation_status, 'OPEN'
+            )) NOT IN (
+                'MITIGATED',
+                'RESOLVED',
+                'CLOSED'
+            )
+        ),
+        COUNT(*) FILTER (
+            WHERE UPPER(COALESCE(
+                mitigation_status, ''
+            )) IN (
+                'MITIGATED',
+                'RESOLVED',
+                'CLOSED'
+            )
+        ),
+        DATE_TRUNC('month', found_date)::DATE,
+        ROW_NUMBER() OVER (
+            ORDER BY DATE_TRUNC('month', found_date)
+        ),
+        NULL
+    FROM stage_data
+    WHERE found_date IS NOT NULL
+    GROUP BY DATE_TRUNC('month', found_date)
+    $sql$
+),
+(
+    'AGING_DISTRIBUTION',
+    'Open vulnerability aging',
+    'STACKED_BAR',
+    70,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH bucketed AS
+    (
+        SELECT
+            CASE
+                WHEN found_date IS NULL THEN 'UNKNOWN'
+                WHEN DATE_DIFF(
+                    'day',
+                    found_date,
+                    CURRENT_DATE
+                ) <= 30 THEN '0-30'
+                WHEN DATE_DIFF(
+                    'day',
+                    found_date,
+                    CURRENT_DATE
+                ) <= 60 THEN '31-60'
+                WHEN DATE_DIFF(
+                    'day',
+                    found_date,
+                    CURRENT_DATE
+                ) <= 90 THEN '61-90'
+                WHEN DATE_DIFF(
+                    'day',
+                    found_date,
+                    CURRENT_DATE
+                ) <= 180 THEN '91-180'
+                ELSE '180+'
+            END AS age_bucket,
+            COALESCE(
+                UPPER(severity),
+                'UNKNOWN'
+            ) AS severity
+        FROM stage_data
+        WHERE UPPER(COALESCE(
+            mitigation_status, 'OPEN'
+        )) NOT IN (
+            'MITIGATED',
+            'RESOLVED',
+            'CLOSED'
+        )
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'AGING_DISTRIBUTION',
+        age_bucket,
+        severity,
+        NULL,
+        COUNT(*),
+        NULL,
+        NULL,
+        NULL,
+        CASE age_bucket
+            WHEN '0-30' THEN 1
+            WHEN '31-60' THEN 2
+            WHEN '61-90' THEN 3
+            WHEN '91-180' THEN 4
+            WHEN '180+' THEN 5
+            ELSE 6
+        END,
+        NULL
+    FROM bucketed
+    GROUP BY age_bucket, severity
+    $sql$
+),
+(
+    'EPSS_DISTRIBUTION',
+    'EPSS distribution',
+    'BAR',
+    80,
+    $sql$
+    INSERT INTO dashboard_result
+    WITH bucketed AS
+    (
+        SELECT
+            CASE
+                WHEN epss IS NULL THEN 'UNKNOWN'
+                WHEN epss >= 0.90 THEN '0.90-1.00'
+                WHEN epss >= 0.70 THEN '0.70-0.89'
+                WHEN epss >= 0.50 THEN '0.50-0.69'
+                WHEN epss >= 0.20 THEN '0.20-0.49'
+                ELSE '0.00-0.19'
+            END AS epss_bucket,
+            severity,
+            kev,
+            epss
+        FROM stage_data
+    )
+    SELECT
+        ${IMPORT_JOB_ID},
+        'EPSS_DISTRIBUTION',
+        epss_bucket,
+        NULL,
+        NULL,
+        COUNT(*),
+        COUNT(*) FILTER (
+            WHERE UPPER(severity) = 'CRITICAL'
+        ),
+        COUNT(*) FILTER (
+            WHERE kev = TRUE
+        ),
+        NULL,
+        CASE epss_bucket
+            WHEN '0.90-1.00' THEN 1
+            WHEN '0.70-0.89' THEN 2
+            WHEN '0.50-0.69' THEN 3
+            WHEN '0.20-0.49' THEN 4
+            WHEN '0.00-0.19' THEN 5
+            ELSE 6
+        END,
+        json_object(
+            'averageEpss',
+            AVG(epss)
+        )
+    FROM bucketed
+    GROUP BY epss_bucket
+    $sql$
+),
+(
+    'RISK_HEATMAP',
+    'Severity and asset priority',
+    'HEATMAP',
+    90,
+    $sql$
+    INSERT INTO dashboard_result
+    SELECT
+        ${IMPORT_JOB_ID},
+        'RISK_HEATMAP',
+        COALESCE(
+            UPPER(severity),
+            'UNKNOWN'
+        ),
+        COALESCE(
+            UPPER(asset_priority),
+            'UNKNOWN'
+        ),
+        NULL,
+        COUNT(*),
+        COUNT(*) FILTER (
+            WHERE kev = TRUE
+        ),
+        AVG(epss),
+        NULL,
+        0,
+        NULL
+    FROM stage_data
+    GROUP BY severity, asset_priority
+    $sql$
+);

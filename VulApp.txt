@@ -1,0 +1,18 @@
+package com.msys.vulnerability;
+
+import com.msys.vulnerability.config.ImportProperties;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+
+@SpringBootApplication
+@EnableConfigurationProperties(ImportProperties.class)
+public class VulnerabilityApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(
+                VulnerabilityApplication.class,
+                args
+        );
+    }
+}

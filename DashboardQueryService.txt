@@ -1,0 +1,73 @@
+package com.msys.vulnerability.aggregation.service;
+
+import com.msys.vulnerability.aggregation.dto.ChartDefinitionResponse;
+import com.msys.vulnerability.aggregation.dto.ChartResponse;
+import com.msys.vulnerability.aggregation.model.AggregationDefinition;
+import com.msys.vulnerability.aggregation.repository.AggregationDefinitionRepository;
+import com.msys.vulnerability.aggregation.repository.DashboardAggregationRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class DashboardQueryService {
+
+    private final AggregationDefinitionRepository definitionRepository;
+    private final DashboardAggregationRepository aggregationRepository;
+
+    public DashboardQueryService(
+            AggregationDefinitionRepository definitionRepository,
+            DashboardAggregationRepository aggregationRepository) {
+
+        this.definitionRepository =
+                definitionRepository;
+
+        this.aggregationRepository =
+                aggregationRepository;
+    }
+
+    public List<ChartDefinitionResponse>
+    availableCharts() {
+
+        return definitionRepository.findEnabled()
+                .stream()
+                .map(definition ->
+                        new ChartDefinitionResponse(
+                                definition.code(),
+                                definition.chartName(),
+                                definition.chartType(),
+                                definition.displayOrder()
+                        ))
+                .toList();
+    }
+
+    public ChartResponse chart(
+            long importJobId,
+            String chartCode) {
+
+        String normalizedCode =
+                chartCode.trim().toUpperCase();
+
+        AggregationDefinition definition =
+                definitionRepository.findEnabled()
+                        .stream()
+                        .filter(item ->
+                                item.code()
+                                    .equals(normalizedCode))
+                        .findFirst()
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Unknown chart: " +
+                                        normalizedCode));
+
+        return new ChartResponse(
+                importJobId,
+                definition.code(),
+                definition.chartName(),
+                definition.chartType(),
+                aggregationRepository.find(
+                        importJobId,
+                        normalizedCode)
+        );
+    }
+}

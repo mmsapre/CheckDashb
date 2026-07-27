@@ -1,0 +1,193 @@
+package com.msys.vulnerability.importjob.service;
+
+import com.msys.vulnerability.aggregation.service.DashboardAggregationCopyService;
+import com.msys.vulnerability.aggregation.service.DashboardAggregationExportService;
+import com.msys.vulnerability.aggregation.service.DashboardAggregationService;
+import com.msys.vulnerability.config.DuckDbConfiguration.DuckDbConnectionFactory;
+import com.msys.vulnerability.config.ImportProperties;
+import com.msys.vulnerability.exception.ImportException;
+import com.msys.vulnerability.importjob.model.ImportDefinition;
+import com.msys.vulnerability.importjob.repository.ImportJobRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.sql.Connection;
+import java.util.UUID;
+
+@Service
+public class ImportExecutionService {
+
+    private final ImportProperties properties;
+    private final ImportDefinitionResolver resolver;
+    private final ImportJobRepository jobRepository;
+    private final DuckDbImportService duckDbImportService;
+    private final DuckDbConnectionFactory connectionFactory;
+    private final DashboardAggregationService aggregationService;
+    private final DashboardAggregationExportService aggregationExportService;
+    private final DashboardAggregationCopyService aggregationCopyService;
+    private final FindingCopyService findingCopyService;
+
+    public ImportExecutionService(
+            ImportProperties properties,
+            ImportDefinitionResolver resolver,
+            ImportJobRepository jobRepository,
+            DuckDbImportService duckDbImportService,
+            DuckDbConnectionFactory connectionFactory,
+            DashboardAggregationService aggregationService,
+            DashboardAggregationExportService aggregationExportService,
+            DashboardAggregationCopyService aggregationCopyService,
+            FindingCopyService findingCopyService) {
+
+        this.properties = properties;
+        this.resolver = resolver;
+        this.jobRepository = jobRepository;
+        this.duckDbImportService = duckDbImportService;
+        this.connectionFactory = connectionFactory;
+        this.aggregationService = aggregationService;
+        this.aggregationExportService =
+                aggregationExportService;
+        this.aggregationCopyService =
+                aggregationCopyService;
+        this.findingCopyService = findingCopyService;
+    }
+
+    public ImportExecutionResult execute(
+            MultipartFile multipartFile) {
+
+        String filename =
+                multipartFile.getOriginalFilename();
+
+        if (filename == null || filename.isBlank()) {
+            throw new ImportException(
+                    "Uploaded filename is missing");
+        }
+
+        ImportDefinition definition =
+                resolver.resolve(filename);
+
+        long importJobId =
+                jobRepository.create(
+                        definition.id(),
+                        filename);
+
+        try {
+            Files.createDirectories(
+                    properties.importRoot());
+
+            Files.createDirectories(
+                    properties.duckdbRoot());
+
+            Files.createDirectories(
+                    properties.exportRoot());
+
+            String executionId =
+                    importJobId + "-" +
+                    UUID.randomUUID();
+
+            Path sourcePath =
+                    properties.importRoot()
+                            .resolve(
+                                    executionId + "-" +
+                                    Path.of(filename)
+                                        .getFileName());
+
+            multipartFile.transferTo(sourcePath);
+
+            Path duckDbPath =
+                    properties.duckdbRoot()
+                            .resolve(
+                                    executionId + ".duckdb");
+
+            Path findingExport =
+                    properties.exportRoot()
+                            .resolve(
+                                    executionId +
+                                    "-findings.csv");
+
+            Path aggregationExport =
+                    properties.exportRoot()
+                            .resolve(
+                                    executionId +
+                                    "-dashboard.csv");
+
+            long rowCount =
+                    duckDbImportService.normalize(
+                            duckDbPath,
+                            sourcePath,
+                            definition);
+
+            try (Connection connection =
+                         connectionFactory.open(
+                                 duckDbPath)) {
+
+                aggregationService.calculate(
+                        connection,
+                        importJobId);
+            }
+
+            findingCopyService.exportStage(
+                    duckDbPath,
+                    importJobId,
+                    findingExport);
+
+            long findingsCopied =
+                    findingCopyService.copy(
+                            findingExport);
+
+            aggregationExportService.export(
+                    duckDbPath,
+                    aggregationExport);
+
+            long aggregationsCopied =
+                    aggregationCopyService.copy(
+                            aggregationExport);
+
+            jobRepository.complete(
+                    importJobId,
+                    rowCount,
+                    findingsCopied,
+                    rowCount - findingsCopied);
+
+            return new ImportExecutionResult(
+                    importJobId,
+                    "COMPLETED",
+                    rowCount,
+                    findingsCopied,
+                    aggregationsCopied
+            );
+
+        } catch (Exception exception) {
+
+            jobRepository.fail(
+                    importJobId,
+                    rootMessage(exception));
+
+            throw new ImportException(
+                    "Import job failed: " +
+                    importJobId,
+                    exception);
+        }
+    }
+
+    private String rootMessage(Throwable throwable) {
+
+        Throwable current = throwable;
+
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+
+        return current.getMessage();
+    }
+
+    public record ImportExecutionResult(
+            long importJobId,
+            String status,
+            long rowsReceived,
+            long findingsCopied,
+            long aggregationsCopied) {
+    }
+}

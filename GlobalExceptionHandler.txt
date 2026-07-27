@@ -1,0 +1,53 @@
+package com.msys.vulnerability.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ImportException.class)
+    public ProblemDetail importFailure(
+            ImportException exception) {
+
+        ProblemDetail detail =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.BAD_REQUEST,
+                        exception.getMessage());
+
+        detail.setTitle("Import failed");
+
+        return detail;
+    }
+
+    @ExceptionHandler(
+            IllegalArgumentException.class)
+    public ProblemDetail invalidRequest(
+            IllegalArgumentException exception) {
+
+        ProblemDetail detail =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.BAD_REQUEST,
+                        exception.getMessage());
+
+        detail.setTitle("Invalid request");
+
+        return detail;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail unexpected(
+            Exception exception) {
+
+        ProblemDetail detail =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Unexpected processing failure");
+
+        detail.setTitle("Internal error");
+
+        return detail;
+    }
+}

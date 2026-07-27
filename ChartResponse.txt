@@ -1,0 +1,11 @@
+package com.msys.vulnerability.aggregation.dto;
+
+import java.util.List;
+
+public record ChartResponse(
+        long importJobId,
+        String chartCode,
+        String chartName,
+        String chartType,
+        List<ChartDataPoint> data) {
+}

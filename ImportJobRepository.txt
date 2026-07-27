@@ -1,0 +1,77 @@
+package com.msys.vulnerability.importjob.repository;
+
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class ImportJobRepository {
+
+    private final JdbcClient jdbcClient;
+
+    public ImportJobRepository(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    public long create(
+            long definitionId,
+            String filename) {
+
+        return jdbcClient.sql("""
+                INSERT INTO vuln.import_job
+                (
+                    import_definition_id,
+                    original_filename,
+                    status
+                )
+                VALUES
+                (
+                    :definitionId,
+                    :filename,
+                    'RUNNING'
+                )
+                RETURNING import_job_id
+                """)
+                .param("definitionId", definitionId)
+                .param("filename", filename)
+                .query(Long.class)
+                .single();
+    }
+
+    public void complete(
+            long importJobId,
+            long received,
+            long accepted,
+            long rejected) {
+
+        jdbcClient.sql("""
+                UPDATE vuln.import_job
+                SET status = 'COMPLETED',
+                    rows_received = :received,
+                    rows_accepted = :accepted,
+                    rows_rejected = :rejected,
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE import_job_id = :importJobId
+                """)
+                .param("received", received)
+                .param("accepted", accepted)
+                .param("rejected", rejected)
+                .param("importJobId", importJobId)
+                .update();
+    }
+
+    public void fail(
+            long importJobId,
+            String errorMessage) {
+
+        jdbcClient.sql("""
+                UPDATE vuln.import_job
+                SET status = 'FAILED',
+                    error_message = :errorMessage,
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE import_job_id = :importJobId
+                """)
+                .param("errorMessage", errorMessage)
+                .param("importJobId", importJobId)
+                .update();
+    }
+}

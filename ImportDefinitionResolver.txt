@@ -1,0 +1,52 @@
+package com.msys.vulnerability.importjob.service;
+
+import com.msys.vulnerability.exception.ImportException;
+import com.msys.vulnerability.importjob.model.ImportDefinition;
+import com.msys.vulnerability.importjob.repository.ImportDefinitionRepository;
+import org.springframework.stereotype.Service;
+
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+
+@Service
+public class ImportDefinitionResolver {
+
+    private final ImportDefinitionRepository repository;
+
+    public ImportDefinitionResolver(
+            ImportDefinitionRepository repository) {
+
+        this.repository = repository;
+    }
+
+    public ImportDefinition resolve(String filename) {
+
+        Path file = Path.of(filename).getFileName();
+
+        return repository.findEnabled()
+                .stream()
+                .filter(definition ->
+                        matches(
+                                definition.filePattern(),
+                                file
+                        ))
+                .findFirst()
+                .orElseThrow(() ->
+                        new ImportException(
+                                "No import definition for file: "
+                                + filename));
+    }
+
+    private boolean matches(
+            String pattern,
+            Path filename) {
+
+        PathMatcher matcher =
+                FileSystems.getDefault()
+                        .getPathMatcher(
+                                "glob:" + pattern);
+
+        return matcher.matches(filename);
+    }
+}

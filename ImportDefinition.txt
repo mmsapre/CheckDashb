@@ -1,0 +1,16 @@
+package com.msys.vulnerability.importjob.model;
+
+import java.util.List;
+
+public record ImportDefinition(
+        long id,
+        String code,
+        String name,
+        String filePattern,
+        String fileType,
+        String delimiter,
+        boolean headerPresent,
+        String sheetName,
+        String targetTable,
+        List<ImportColumnMapping> mappings) {
+}

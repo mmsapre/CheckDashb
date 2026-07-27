@@ -1,0 +1,183 @@
+package com.msys.vulnerability.importjob.service;
+
+import com.msys.vulnerability.config.DuckDbConfiguration.DuckDbConnectionFactory;
+import org.postgresql.PGConnection;
+import org.postgresql.copy.CopyManager;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.Statement;
+
+@Service
+public class FindingCopyService {
+
+    private final DataSource dataSource;
+    private final DuckDbConnectionFactory duckDbConnectionFactory;
+
+    public FindingCopyService(
+            DataSource dataSource,
+            DuckDbConnectionFactory duckDbConnectionFactory) {
+
+        this.dataSource = dataSource;
+        this.duckDbConnectionFactory =
+                duckDbConnectionFactory;
+    }
+
+    public void exportStage(
+            Path duckDbPath,
+            long importJobId,
+            Path outputFile)
+            throws Exception {
+
+        String target =
+                outputFile.toAbsolutePath()
+                        .toString()
+                        .replace("\\", "/")
+                        .replace("'", "''");
+
+        String sql = """
+                COPY
+                (
+                    SELECT
+                        %d AS import_job_id,
+                        vulnerability_id,
+                        hostname,
+                        ip_address,
+                        port,
+                        severity,
+                        finding_status,
+                        mitigation_status,
+                        vulnerability_name,
+                        cve,
+                        cve_description,
+                        technology,
+                        product_name,
+                        product_version,
+                        kev,
+                        epss,
+                        internet_facing,
+                        asset_priority,
+                        environment,
+                        region,
+                        country,
+                        it_service,
+                        service_owner,
+                        l1_department,
+                        l2_department,
+                        l3_department,
+                        l4_department,
+                        l5_department,
+                        jira_ticket,
+                        jira_status,
+                        patch_available,
+                        found_date,
+                        due_date,
+                        resolved_date
+                    FROM stage_data
+                )
+                TO '%s'
+                (
+                    FORMAT CSV,
+                    HEADER TRUE,
+                    FORCE_QUOTE *
+                )
+                """.formatted(importJobId, target);
+
+        try (Connection connection =
+                     duckDbConnectionFactory.open(
+                             duckDbPath);
+             Statement statement =
+                     connection.createStatement()) {
+
+            statement.execute(sql);
+        }
+    }
+
+    public long copy(Path file) {
+
+        String sql = """
+                COPY vuln.vulnerability_finding
+                (
+                    import_job_id,
+                    vulnerability_id,
+                    hostname,
+                    ip_address,
+                    port,
+                    severity,
+                    finding_status,
+                    mitigation_status,
+                    vulnerability_name,
+                    cve,
+                    cve_description,
+                    technology,
+                    product_name,
+                    product_version,
+                    kev,
+                    epss,
+                    internet_facing,
+                    asset_priority,
+                    environment,
+                    region,
+                    country,
+                    it_service,
+                    service_owner,
+                    l1_department,
+                    l2_department,
+                    l3_department,
+                    l4_department,
+                    l5_department,
+                    jira_ticket,
+                    jira_status,
+                    patch_available,
+                    found_date,
+                    due_date,
+                    resolved_date
+                )
+                FROM STDIN
+                WITH
+                (
+                    FORMAT CSV,
+                    HEADER TRUE,
+                    NULL ''
+                )
+                """;
+
+        try (Connection connection =
+                     dataSource.getConnection();
+             Reader reader =
+                     Files.newBufferedReader(
+                             file,
+                             StandardCharsets.UTF_8)) {
+
+            connection.setAutoCommit(false);
+
+            try {
+                CopyManager manager =
+                        connection.unwrap(
+                                PGConnection.class)
+                                  .getCopyAPI();
+
+                long copied =
+                        manager.copyIn(sql, reader);
+
+                connection.commit();
+
+                return copied;
+
+            } catch (Exception exception) {
+                connection.rollback();
+                throw exception;
+            }
+
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Unable to copy findings",
+                    exception);
+        }
+    }
+}

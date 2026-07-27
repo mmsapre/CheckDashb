@@ -1,0 +1,49 @@
+package com.msys.vulnerability.aggregation.repository;
+
+import com.msys.vulnerability.aggregation.model.AggregationDefinition;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public class AggregationDefinitionRepository {
+
+    private final JdbcClient jdbcClient;
+
+    public AggregationDefinitionRepository(
+            JdbcClient jdbcClient) {
+
+        this.jdbcClient = jdbcClient;
+    }
+
+    public List<AggregationDefinition> findEnabled() {
+
+        return jdbcClient.sql("""
+                SELECT
+                    aggregation_code,
+                    chart_name,
+                    chart_type,
+                    aggregation_sql,
+                    display_order
+                FROM vuln.dashboard_aggregation_definition
+                WHERE enabled = TRUE
+                ORDER BY display_order,
+                         aggregation_code
+                """)
+                .query((rs, rowNumber) ->
+                        new AggregationDefinition(
+                                rs.getString(
+                                        "aggregation_code"),
+                                rs.getString(
+                                        "chart_name"),
+                                rs.getString(
+                                        "chart_type"),
+                                rs.getString(
+                                        "aggregation_sql"),
+                                rs.getInt(
+                                        "display_order")
+                        ))
+                .list();
+    }
+}

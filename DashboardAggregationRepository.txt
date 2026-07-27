@@ -1,0 +1,85 @@
+package com.msys.vulnerability.aggregation.repository;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msys.vulnerability.aggregation.dto.ChartDataPoint;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public class DashboardAggregationRepository {
+
+    private final JdbcClient jdbcClient;
+    private final ObjectMapper objectMapper;
+
+    public DashboardAggregationRepository(
+            JdbcClient jdbcClient,
+            ObjectMapper objectMapper) {
+
+        this.jdbcClient = jdbcClient;
+        this.objectMapper = objectMapper;
+    }
+
+    public List<ChartDataPoint> find(
+            long importJobId,
+            String chartCode) {
+
+        return jdbcClient.sql("""
+                SELECT
+                    category,
+                    series,
+                    sub_category,
+                    value,
+                    secondary_value,
+                    tertiary_value,
+                    period_start,
+                    payload
+                FROM vuln.dashboard_aggregation
+                WHERE import_job_id = :importJobId
+                  AND chart_code = :chartCode
+                ORDER BY
+                    period_start NULLS LAST,
+                    sort_order,
+                    category,
+                    series
+                """)
+                .param("importJobId", importJobId)
+                .param("chartCode", chartCode)
+                .query((rs, rowNumber) ->
+                        new ChartDataPoint(
+                                rs.getString("category"),
+                                rs.getString("series"),
+                                rs.getString(
+                                        "sub_category"),
+                                rs.getBigDecimal("value"),
+                                rs.getBigDecimal(
+                                        "secondary_value"),
+                                rs.getBigDecimal(
+                                        "tertiary_value"),
+                                rs.getObject(
+                                        "period_start",
+                                        java.time.LocalDate.class),
+                                parseJson(
+                                        rs.getString(
+                                                "payload"))
+                        ))
+                .list();
+    }
+
+    private JsonNode parseJson(String value) {
+
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readTree(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Invalid aggregation payload",
+                    exception);
+        }
+    }
+}

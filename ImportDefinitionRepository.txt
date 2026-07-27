@@ -1,0 +1,93 @@
+package com.msys.vulnerability.importjob.repository;
+
+import com.msys.vulnerability.importjob.model.ImportColumnMapping;
+import com.msys.vulnerability.importjob.model.ImportDefinition;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public class ImportDefinitionRepository {
+
+    private final JdbcClient jdbcClient;
+
+    public ImportDefinitionRepository(
+            JdbcClient jdbcClient) {
+
+        this.jdbcClient = jdbcClient;
+    }
+
+    public List<ImportDefinition> findEnabled() {
+
+        return jdbcClient.sql("""
+                SELECT
+                    import_definition_id,
+                    definition_code,
+                    definition_name,
+                    file_pattern,
+                    file_type,
+                    delimiter,
+                    header_present,
+                    sheet_name,
+                    target_table
+                FROM vuln.import_definition
+                WHERE enabled = TRUE
+                ORDER BY import_definition_id
+                """)
+                .query((rs, rowNumber) -> {
+
+                    long id = rs.getLong(
+                            "import_definition_id");
+
+                    return new ImportDefinition(
+                            id,
+                            rs.getString("definition_code"),
+                            rs.getString("definition_name"),
+                            rs.getString("file_pattern"),
+                            rs.getString("file_type"),
+                            rs.getString("delimiter"),
+                            rs.getBoolean("header_present"),
+                            rs.getString("sheet_name"),
+                            rs.getString("target_table"),
+                            findMappings(id)
+                    );
+                })
+                .list();
+    }
+
+    private List<ImportColumnMapping> findMappings(
+            long definitionId) {
+
+        return jdbcClient.sql("""
+                SELECT
+                    mapping_id,
+                    source_column,
+                    target_column,
+                    data_type,
+                    mandatory,
+                    default_value,
+                    transform_expression,
+                    display_order
+                FROM vuln.import_column_mapping
+                WHERE import_definition_id =
+                      :definitionId
+                  AND enabled = TRUE
+                ORDER BY display_order
+                """)
+                .param("definitionId", definitionId)
+                .query((rs, rowNumber) ->
+                        new ImportColumnMapping(
+                                rs.getLong("mapping_id"),
+                                rs.getString("source_column"),
+                                rs.getString("target_column"),
+                                rs.getString("data_type"),
+                                rs.getBoolean("mandatory"),
+                                rs.getString("default_value"),
+                                rs.getString(
+                                        "transform_expression"),
+                                rs.getInt("display_order")
+                        ))
+                .list();
+    }
+}

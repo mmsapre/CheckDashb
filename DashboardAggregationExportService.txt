@@ -1,0 +1,70 @@
+package com.msys.vulnerability.aggregation.service;
+
+import com.msys.vulnerability.config.DuckDbConfiguration.DuckDbConnectionFactory;
+import org.springframework.stereotype.Service;
+
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.Statement;
+
+@Service
+public class DashboardAggregationExportService {
+
+    private final DuckDbConnectionFactory connectionFactory;
+
+    public DashboardAggregationExportService(
+            DuckDbConnectionFactory connectionFactory) {
+
+        this.connectionFactory = connectionFactory;
+    }
+
+    public void export(
+            Path duckDbPath,
+            Path outputFile)
+            throws Exception {
+
+        String target =
+                outputFile.toAbsolutePath()
+                        .toString()
+                        .replace("\\", "/")
+                        .replace("'", "''");
+
+        String sql = """
+                COPY
+                (
+                    SELECT
+                        import_job_id,
+                        chart_code,
+                        category,
+                        series,
+                        sub_category,
+                        value,
+                        secondary_value,
+                        tertiary_value,
+                        period_start,
+                        sort_order,
+                        CAST(payload AS VARCHAR)
+                            AS payload
+                    FROM dashboard_result
+                    ORDER BY
+                        chart_code,
+                        period_start,
+                        sort_order
+                )
+                TO '%s'
+                (
+                    FORMAT CSV,
+                    HEADER TRUE,
+                    FORCE_QUOTE *
+                )
+                """.formatted(target);
+
+        try (Connection connection =
+                     connectionFactory.open(duckDbPath);
+             Statement statement =
+                     connection.createStatement()) {
+
+            statement.execute(sql);
+        }
+    }
+}

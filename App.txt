@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: vulnerability-dashboard
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vulnerability
+    username: postgres
+    password: postgres
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 3
+      connection-timeout: 30000
+
+  servlet:
+    multipart:
+      max-file-size: 1GB
+      max-request-size: 1GB
+
+  flyway:
+    enabled: true
+    schemas:
+      - vuln
+
+vulnerability:
+  import-root: ./data/import
+  duckdb-root: ./data/duckdb
+  export-root: ./data/export
+  batch-size: 10000

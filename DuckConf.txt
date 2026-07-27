@@ -1,0 +1,30 @@
+package com.msys.vulnerability.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+@Configuration
+public class DuckDbConfiguration {
+
+    @Bean
+    public DuckDbConnectionFactory
+    duckDbConnectionFactory() {
+
+        return databasePath ->
+                DriverManager.getConnection(
+                        "jdbc:duckdb:" +
+                        databasePath.toAbsolutePath()
+                );
+    }
+
+    @FunctionalInterface
+    public interface DuckDbConnectionFactory {
+
+        Connection open(java.nio.file.Path databasePath)
+                throws SQLException;
+    }
+}

@@ -1,0 +1,32 @@
+package com.msys.vulnerability.importjob.controller;
+
+import com.msys.vulnerability.importjob.service.ImportExecutionService;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/v1/imports")
+public class ImportController {
+
+    private final ImportExecutionService service;
+
+    public ImportController(
+            ImportExecutionService service) {
+
+        this.service = service;
+    }
+
+    @PostMapping(
+            consumes =
+                    MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ImportExecutionService.ImportExecutionResult
+    upload(
+            @RequestPart("file")
+            @NotNull
+            MultipartFile file) {
+
+        return service.execute(file);
+    }
+}

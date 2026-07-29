@@ -1,0 +1,77 @@
+package com.msys.vulnerability.config;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import javax.sql.DataSource;
+
+@Configuration
+public class PostgreSqlConfiguration {
+
+    @Bean
+    public DataSource dataSource(
+            DataSourceProperties properties) {
+
+        HikariConfig config =
+                new HikariConfig();
+
+        config.setDriverClassName(
+                properties.getDriverClassName());
+
+        config.setJdbcUrl(
+                properties.getUrl());
+
+        config.setUsername(
+                properties.getUsername());
+
+        config.setPassword(
+                properties.getPassword());
+
+        config.setPoolName(
+                "VulnerabilityPool");
+
+        config.setMinimumIdle(5);
+
+        config.setMaximumPoolSize(20);
+
+        config.setConnectionTimeout(
+                30000);
+
+        config.setIdleTimeout(
+                300000);
+
+        config.setMaxLifetime(
+                1800000);
+
+        config.setAutoCommit(false);
+
+        config.setConnectionTestQuery(
+                "SELECT 1");
+
+        return new HikariDataSource(config);
+    }
+
+    @Bean
+    public JdbcClient jdbcClient(
+            DataSource dataSource) {
+
+        return JdbcClient.create(
+                dataSource);
+    }
+
+    @Bean
+    public PlatformTransactionManager
+    transactionManager(
+            DataSource dataSource) {
+
+        return new DataSourceTransactionManager(
+                dataSource);
+    }
+
+}

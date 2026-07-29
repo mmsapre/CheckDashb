@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/vulnerability
+    username: postgres
+    password: postgres
+
+    hikari:
+      pool-name: VulnerabilityPool
+
+      minimum-idle: 5
+      maximum-pool-size: 20
+
+      connection-timeout: 30000
+      validation-timeout: 5000
+
+      idle-timeout: 300000
+      max-lifetime: 1800000
+
+      auto-commit: false
+
+      leak-detection-threshold: 60000
+
+      connection-test-query: SELECT 1
+
+  jdbc:
+    template:
+      fetch-size: 5000
+
+  flyway:
+    enabled: true
+    locations:
+      - classpath:db/migration
+
+    baseline-on-migrate: true
+
+    validate-on-migrate: true
+
+    schemas:
+      - vuln

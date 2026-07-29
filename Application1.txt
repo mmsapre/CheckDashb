@@ -1,0 +1,73 @@
+vulnerability:
+
+  storage:
+
+    root: ./data
+
+    incoming-folder: incoming
+
+    processing-folder: processing
+
+    archive-folder: archive
+
+    error-folder: error
+
+    export-folder: export
+
+    duckdb-folder: duckdb
+
+    temp-folder: temp
+
+    keep-original-file: true
+
+    archive-on-success: true
+
+    move-to-error-on-failure: true
+
+    delete-export-after-copy: false
+
+    delete-duckdb-after-import: true
+
+  import:
+
+    max-file-size: 2GB
+
+    allowed-extensions:
+      - csv
+      - xlsx
+
+    overwrite-existing: false
+
+    calculate-checksum: true
+
+    create-import-job: true
+
+    validate-before-import: true
+
+    batch-size: 10000
+
+    parallel-import: false
+
+  postgres:
+
+    use-copy: true
+
+    truncate-stage-before-load: true
+
+    commit-batch-size: 50000
+
+  dashboard:
+
+    calculate-aggregations: true
+
+    export-results: true
+
+    copy-to-postgres: true
+
+  cleanup:
+
+    delete-processing-files: true
+
+    delete-temp-files: true
+
+    archive-days: 30

@@ -1,0 +1,39 @@
+@Service
+public class PostgresCopyService {
+
+    private final DataSource dataSource;
+
+    public PostgresCopyService(
+            DataSource dataSource) {
+
+        this.dataSource = dataSource;
+    }
+
+    public long copy(
+            String copySql,
+            Reader reader)
+            throws Exception {
+
+        try (Connection connection =
+                     dataSource.getConnection()) {
+
+            connection.setAutoCommit(false);
+
+            PGConnection pgConnection =
+                    connection.unwrap(
+                            PGConnection.class);
+
+            CopyManager manager =
+                    pgConnection.getCopyAPI();
+
+            long rows =
+                    manager.copyIn(
+                            copySql,
+                            reader);
+
+            connection.commit();
+
+            return rows;
+        }
+    }
+}

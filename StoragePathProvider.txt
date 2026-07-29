@@ -1,0 +1,60 @@
+package com.msys.vulnerability.storage;
+
+import com.msys.vulnerability.config.VulnerabilityProperties;
+import org.springframework.stereotype.Component;
+
+import java.nio.file.Path;
+
+@Component
+public class StoragePathProvider {
+
+    private final VulnerabilityProperties properties;
+
+    public StoragePathProvider(
+            VulnerabilityProperties properties) {
+
+        this.properties = properties;
+    }
+
+    public Path incoming() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getIncomingFolder());
+    }
+
+    public Path processing() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getProcessingFolder());
+    }
+
+    public Path archive() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getArchiveFolder());
+    }
+
+    public Path error() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getErrorFolder());
+    }
+
+    public Path export() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getExportFolder());
+    }
+
+    public Path duckDb() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getDuckdbFolder());
+    }
+
+    public Path temp() {
+        return Path.of(
+                properties.getStorage().getRoot(),
+                properties.getStorage().getTempFolder());
+    }
+}

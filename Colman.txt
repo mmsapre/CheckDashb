@@ -1,0 +1,137 @@
+INSERT INTO vuln.import_column_mapping
+(
+    import_definition_id,
+    source_column,
+    target_column,
+    data_type,
+    mandatory,
+    display_order
+)
+SELECT
+    d.import_definition_id,
+    m.source_column,
+    m.target_column,
+    m.data_type,
+    m.mandatory,
+    m.display_order
+FROM vuln.import_definition d
+JOIN
+(
+VALUES
+
+('Hostname','hostname','VARCHAR',TRUE,1),
+('Host_Alias','host_alias','VARCHAR',FALSE,2),
+('Asset_Locator','asset_locator','VARCHAR',FALSE,3),
+('IP','ip_address','VARCHAR',FALSE,4),
+('Status','finding_status','VARCHAR',FALSE,5),
+('Source','source_system','VARCHAR',FALSE,6),
+('Port','port','INTEGER',FALSE,7),
+('Tech','technology','VARCHAR',FALSE,8),
+('Last_Seen','last_seen_ts','TIMESTAMP',FALSE,9),
+('Repeated','repeated','BOOLEAN',FALSE,10),
+
+('Mitigation_Status','mitigation_status','VARCHAR',FALSE,11),
+('Mitigation_Date','mitigation_date','DATE',FALSE,12),
+('Mitigating_Owner','mitigation_owner','VARCHAR',FALSE,13),
+('Mitigating_Owner_Sub_Function','mitigation_owner_sub_function','VARCHAR',FALSE,14),
+('Mitigating_Action','mitigation_action','VARCHAR',FALSE,15),
+('Remarks','remarks','TEXT',FALSE,16),
+('Vul','vulnerability_id','VARCHAR',FALSE,17),
+('Patching_Plan','patching_plan','VARCHAR',FALSE,18),
+('Tag_Device_Type','device_type','VARCHAR',FALSE,19),
+('Vulnerability','vulnerability_name','TEXT',TRUE,20),
+
+('KEV','kev','BOOLEAN',FALSE,21),
+('EU_Exploited_Vuln','eu_exploited_vulnerability','BOOLEAN',FALSE,22),
+('nvd_attackVector','attack_vector','VARCHAR',FALSE,23),
+('nvd_attackComplexity','attack_complexity','VARCHAR',FALSE,24),
+('privileges','privileges_required','VARCHAR',FALSE,25),
+('epss','epss_score','DECIMAL',FALSE,26),
+('CVE_Description','cve_description','TEXT',FALSE,27),
+('Severity','severity','VARCHAR',TRUE,28),
+('Connector_Source','connector_source','VARCHAR',FALSE,29),
+('Found','found_date','DATE',FALSE,30),
+
+('Created','created_date','DATE',FALSE,31),
+('Asset_OS','asset_os','VARCHAR',FALSE,32),
+('VM_Updated','vm_updated_date','DATE',FALSE,33),
+('DMZ','dmz','BOOLEAN',FALSE,34),
+('Tag_Environment','environment','VARCHAR',FALSE,35),
+('VM_ID','vm_identifier','VARCHAR',FALSE,36),
+('Asset_ID','asset_identifier','VARCHAR',FALSE,37),
+('Internal_Val_ID','internal_validation_id','VARCHAR',FALSE,38),
+('Internal_Asset_ID','internal_asset_id','VARCHAR',FALSE,39),
+('File_ID','file_identifier','VARCHAR',FALSE,40),
+
+('BRD_ID','brd_id','VARCHAR',FALSE,41),
+('IT_Service','it_service','VARCHAR',FALSE,42),
+('BRD_Delegate','brd_delegate','VARCHAR',FALSE,43),
+('Service_Owner','service_owner','VARCHAR',FALSE,44),
+('PUADA_Criticality','puada_criticality','VARCHAR',FALSE,45),
+('GRAS','gras','VARCHAR',FALSE,46),
+('Service_IT_GRS_6','service_it_grs_6','VARCHAR',FALSE,47),
+('Service_IT_GRS_7','service_it_grs_7','VARCHAR',FALSE,48),
+('Service_IT_GRS_8','service_it_grs_8','VARCHAR',FALSE,49),
+('Region','region','VARCHAR',FALSE,50),
+
+('Country','country','VARCHAR',FALSE,51),
+('Service_Usage_Region','service_usage_region','VARCHAR',FALSE,52),
+('Service_Usage_Country','service_usage_country','VARCHAR',FALSE,53),
+('Connectivity_Country','connectivity_country','VARCHAR',FALSE,54),
+('Application_Service_ID','application_service_id','VARCHAR',FALSE,55),
+('Application_Service_Name','application_service_name','VARCHAR',FALSE,56),
+('CISO','ciso_owner','VARCHAR',FALSE,57),
+('BusinessArea','business_area','VARCHAR',FALSE,58),
+('Details','details','TEXT',FALSE,59),
+('Solution','solution','TEXT',FALSE,60),
+
+('Import_Date','import_date','DATE',FALSE,61),
+('Analysis_Status','analysis_status','VARCHAR',FALSE,62),
+('Datasource','datasource','VARCHAR',FALSE,63),
+('Report_Link','report_link','VARCHAR',FALSE,64),
+('First_Notification','first_notification_date','DATE',FALSE,65),
+('Due_Date','due_date','DATE',FALSE,66),
+('Kenna_Due_Date','kenna_due_date','DATE',FALSE,67),
+('Overdue_Days','overdue_days','INTEGER',FALSE,68),
+('Modified_By','modified_by','VARCHAR',FALSE,69),
+('Modified','modified_date','TIMESTAMP',FALSE,70),
+
+('Patch_Available','patch_available','BOOLEAN',FALSE,71),
+('Patch_Centrally','patch_centrally','BOOLEAN',FALSE,72),
+('Patch_Available_Date','patch_available_date','DATE',FALSE,73),
+('Status_Modified_By','status_modified_by','VARCHAR',FALSE,74),
+('Scanning_Ids','scanning_ids','TEXT',FALSE,75),
+('Notes','notes','TEXT',FALSE,76),
+('Jira_Ticket','jira_ticket','VARCHAR',FALSE,77),
+('Jira_Status','jira_status','VARCHAR',FALSE,78),
+('Asset_Priority','asset_priority','VARCHAR',FALSE,79),
+('Previous_Severity','previous_severity','VARCHAR',FALSE,80),
+
+('Busapp_ID','business_application_id','VARCHAR',FALSE,81),
+('L1AssetDept','l1_asset_department','VARCHAR',FALSE,82),
+('L2AssetDept','l2_asset_department','VARCHAR',FALSE,83),
+('L3AssetDept','l3_asset_department','VARCHAR',FALSE,84),
+('L4AssetDept','l4_asset_department','VARCHAR',FALSE,85),
+('L5AssetDept','l5_asset_department','VARCHAR',FALSE,86),
+('Category','category','VARCHAR',FALSE,87),
+('Severity_Changed','severity_changed','BOOLEAN',FALSE,88),
+('Vendor_Patch_Available_Date','vendor_patch_available_date','DATE',FALSE,89),
+('Iriusrisk_Control_IDs','iriusrisk_control_ids','TEXT',FALSE,90),
+
+('productName','product_name','VARCHAR',FALSE,91),
+('productVersion','product_version','VARCHAR',FALSE,92),
+('recommendedPatch','recommended_patch','TEXT',FALSE,93),
+('hsbcDateReleased','hsbc_date_released','DATE',FALSE,94),
+('vendorDateReleased','vendor_date_released','DATE',FALSE,95),
+('Helios_Ticket','helios_ticket','VARCHAR',FALSE,96),
+('GRAS','gras_rating','VARCHAR',FALSE,97)
+
+) m
+(
+source_column,
+target_column,
+data_type,
+mandatory,
+display_order
+)
+ON d.definition_code='CYBERPORT_2026';

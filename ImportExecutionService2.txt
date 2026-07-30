@@ -1,0 +1,317 @@
+package com.msys.vulnerability.importjob.service;
+
+import com.msys.vulnerability.aggregation.service.DashboardAggregationCopyService;
+import com.msys.vulnerability.aggregation.service.DashboardAggregationExportService;
+import com.msys.vulnerability.aggregation.service.DashboardAggregationService;
+import com.msys.vulnerability.config.DuckDbConfiguration.DuckDbConnectionFactory;
+import com.msys.vulnerability.config.ImportProperties;
+import com.msys.vulnerability.exception.ImportException;
+import com.msys.vulnerability.importjob.model.ImportDefinition;
+import com.msys.vulnerability.importjob.repository.ImportJobRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.util.UUID;
+
+@Service
+public class ImportExecutionService {
+
+    private final ImportProperties properties;
+    private final ImportDefinitionResolver definitionResolver;
+    private final ImportJobRepository importJobRepository;
+    private final DuckDbImportService duckDbImportService;
+    private final FindingCopyService findingCopyService;
+    private final DashboardAggregationService aggregationService;
+    private final DashboardAggregationExportService aggregationExportService;
+    private final DashboardAggregationCopyService aggregationCopyService;
+    private final DuckDbConnectionFactory connectionFactory;
+    private final ImportJobStatusService statusService;
+    private final FileStorageService fileStorageService;
+
+    public ImportExecutionService(
+            ImportProperties properties,
+            ImportDefinitionResolver definitionResolver,
+            ImportJobRepository importJobRepository,
+            DuckDbImportService duckDbImportService,
+            FindingCopyService findingCopyService,
+            DashboardAggregationService aggregationService,
+            DashboardAggregationExportService aggregationExportService,
+            DashboardAggregationCopyService aggregationCopyService,
+            DuckDbConnectionFactory connectionFactory,
+            ImportJobStatusService statusService,
+            FileStorageService fileStorageService) {
+
+        this.properties = properties;
+        this.definitionResolver = definitionResolver;
+        this.importJobRepository = importJobRepository;
+        this.duckDbImportService = duckDbImportService;
+        this.findingCopyService = findingCopyService;
+        this.aggregationService = aggregationService;
+        this.aggregationExportService = aggregationExportService;
+        this.aggregationCopyService = aggregationCopyService;
+        this.connectionFactory = connectionFactory;
+        this.statusService = statusService;
+        this.fileStorageService = fileStorageService;
+    }
+
+    public ImportResult execute(MultipartFile file) {
+
+        String filename = file.getOriginalFilename();
+
+        if (filename == null || filename.isBlank()) {
+            throw new ImportException(
+                    "Uploaded filename is missing"
+            );
+        }
+
+        ImportDefinition definition =
+                definitionResolver.resolve(filename);
+
+        long importJobId =
+                importJobRepository.create(
+                        definition.id(),
+                        filename
+                );
+
+        Path processingFile = null;
+        Path duckDbFile = null;
+        Path findingsExport = null;
+        Path dashboardExport = null;
+
+        try {
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.RECEIVED
+            );
+
+            processingFile =
+                    fileStorageService.storeForProcessing(
+                            importJobId,
+                            file
+                    );
+
+            String executionId =
+                    importJobId + "-" + UUID.randomUUID();
+
+            duckDbFile =
+                    properties.storage()
+                            .duckDb()
+                            .resolve(executionId + ".duckdb");
+
+            findingsExport =
+                    properties.storage()
+                            .export()
+                            .resolve(executionId + "-findings.csv");
+
+            dashboardExport =
+                    properties.storage()
+                            .export()
+                            .resolve(executionId + "-dashboard.csv");
+
+            Files.createDirectories(
+                    duckDbFile.getParent()
+            );
+
+            Files.createDirectories(
+                    findingsExport.getParent()
+            );
+
+            /*
+             * 1. Normalize the uploaded file into DuckDB stage_data.
+             */
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.NORMALIZING
+            );
+
+            long rowsReceived =
+                    duckDbImportService.normalize(
+                            duckDbFile,
+                            processingFile,
+                            definition
+                    );
+
+            /*
+             * 2. Export normalized findings from DuckDB.
+             */
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.EXPORTING_FINDINGS
+            );
+
+            findingCopyService.exportStage(
+                    duckDbFile,
+                    importJobId,
+                    findingsExport
+            );
+
+            /*
+             * 3. Copy normalized findings into PostgreSQL.
+             */
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.COPYING_FINDINGS
+            );
+
+            long findingsCopied =
+                    findingCopyService.copy(
+                            findingsExport
+                    );
+
+            /*
+             * 4. Trigger all configured dashboard aggregations.
+             *
+             * This executes enabled SQL definitions from:
+             * vuln.dashboard_aggregation_definition
+             *
+             * The SQL reads stage_data and writes dashboard_result.
+             */
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.AGGREGATING
+            );
+
+            try (Connection duckDbConnection =
+                         connectionFactory.open(duckDbFile)) {
+
+                aggregationService.calculate(
+                        duckDbConnection,
+                        importJobId
+                );
+            }
+
+            /*
+             * 5. Export chart-ready aggregation rows.
+             */
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.EXPORTING_AGGREGATIONS
+            );
+
+            aggregationExportService.export(
+                    duckDbFile,
+                    dashboardExport
+            );
+
+            /*
+             * 6. Copy chart-ready rows into PostgreSQL.
+             */
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.COPYING_AGGREGATIONS
+            );
+
+            long aggregationsCopied =
+                    aggregationCopyService.copy(
+                            dashboardExport
+                    );
+
+            /*
+             * 7. Complete only after both finding and aggregation
+             *    data have been committed.
+             */
+            importJobRepository.complete(
+                    importJobId,
+                    rowsReceived,
+                    findingsCopied,
+                    rowsReceived - findingsCopied
+            );
+
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.COMPLETED
+            );
+
+            fileStorageService.archive(
+                    importJobId,
+                    processingFile
+            );
+
+            return new ImportResult(
+                    importJobId,
+                    "COMPLETED",
+                    rowsReceived,
+                    findingsCopied,
+                    aggregationsCopied
+            );
+
+        } catch (Exception exception) {
+
+            statusService.update(
+                    importJobId,
+                    ImportJobStatus.FAILED
+            );
+
+            importJobRepository.fail(
+                    importJobId,
+                    rootMessage(exception)
+            );
+
+            if (processingFile != null) {
+                fileStorageService.moveToError(
+                        importJobId,
+                        processingFile
+                );
+            }
+
+            throw new ImportException(
+                    "Import failed for job " +
+                    importJobId,
+                    exception
+            );
+        } finally {
+
+            cleanupTemporaryFiles(
+                    duckDbFile,
+                    findingsExport,
+                    dashboardExport
+            );
+        }
+    }
+
+    private void cleanupTemporaryFiles(
+            Path duckDbFile,
+            Path findingsExport,
+            Path dashboardExport) {
+
+        try {
+            if (properties.cleanup()
+                    .deleteExportFiles()) {
+
+                Files.deleteIfExists(findingsExport);
+                Files.deleteIfExists(dashboardExport);
+            }
+
+            if (properties.cleanup()
+                    .deleteDuckDbFile()) {
+
+                Files.deleteIfExists(duckDbFile);
+            }
+
+        } catch (Exception ignored) {
+            // Log cleanup failure, but do not fail completed import.
+        }
+    }
+
+    private String rootMessage(Throwable throwable) {
+
+        Throwable current = throwable;
+
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+
+        return current.getMessage();
+    }
+
+    public record ImportResult(
+            long importJobId,
+            String status,
+            long rowsReceived,
+            long findingsCopied,
+            long aggregationsCopied) {
+    }
+}

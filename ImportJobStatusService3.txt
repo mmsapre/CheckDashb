@@ -1,0 +1,31 @@
+package com.msys.vulnerability.importjob.service;
+
+import com.msys.vulnerability.importjob.model.ImportJobStatus;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ImportJobStatusService {
+
+    private final JdbcClient jdbcClient;
+
+    public ImportJobStatusService(
+            JdbcClient jdbcClient) {
+
+        this.jdbcClient = jdbcClient;
+    }
+
+    public void update(
+            long importJobId,
+            ImportJobStatus status) {
+
+        jdbcClient.sql("""
+                UPDATE vuln.import_job
+                SET status = :status
+                WHERE import_job_id = :importJobId
+                """)
+                .param("status", status.name())
+                .param("importJobId", importJobId)
+                .update();
+    }
+}

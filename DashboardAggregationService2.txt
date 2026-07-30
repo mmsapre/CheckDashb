@@ -1,0 +1,95 @@
+package com.msys.vulnerability.aggregation.service;
+
+import com.msys.vulnerability.aggregation.model.AggregationDefinition;
+import com.msys.vulnerability.aggregation.repository.AggregationDefinitionRepository;
+import org.springframework.stereotype.Service;
+
+import java.sql.Connection;
+import java.sql.Statement;
+import java.util.List;
+
+@Service
+public class DashboardAggregationService {
+
+    private final AggregationDefinitionRepository repository;
+
+    public DashboardAggregationService(
+            AggregationDefinitionRepository repository) {
+
+        this.repository = repository;
+    }
+
+    public void calculate(
+            Connection connection,
+            long importJobId)
+            throws Exception {
+
+        createResultTable(connection);
+
+        List<AggregationDefinition> definitions =
+                repository.findEnabled();
+
+        for (AggregationDefinition definition : definitions) {
+
+            execute(
+                    connection,
+                    importJobId,
+                    definition
+            );
+        }
+    }
+
+    private void createResultTable(
+            Connection connection)
+            throws Exception {
+
+        try (Statement statement =
+                     connection.createStatement()) {
+
+            statement.execute("""
+                    CREATE OR REPLACE TABLE dashboard_result
+                    (
+                        import_job_id BIGINT,
+                        chart_code VARCHAR,
+                        category VARCHAR,
+                        series VARCHAR,
+                        sub_category VARCHAR,
+                        value DOUBLE,
+                        secondary_value DOUBLE,
+                        tertiary_value DOUBLE,
+                        period_start DATE,
+                        sort_order INTEGER,
+                        payload JSON
+                    )
+                    """);
+        }
+    }
+
+    private void execute(
+            Connection connection,
+            long importJobId,
+            AggregationDefinition definition)
+            throws Exception {
+
+        String sql =
+                definition.sql()
+                        .replace(
+                                "${IMPORT_JOB_ID}",
+                                Long.toString(importJobId)
+                        );
+
+        try (Statement statement =
+                     connection.createStatement()) {
+
+            statement.execute(sql);
+
+        } catch (Exception exception) {
+
+            throw new IllegalStateException(
+                    "Dashboard aggregation failed: " +
+                    definition.code(),
+                    exception
+            );
+        }
+    }
+}

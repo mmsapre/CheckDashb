@@ -1,0 +1,26 @@
+package com.msys.vulnerability.dashboard.service;
+
+import com.msys.vulnerability.dashboard.executor.DashboardAggregationExecutor;
+import com.msys.vulnerability.dashboard.model.AggregationDefinition;
+
+public class DashboardAggregationService {
+
+    private final DashboardAggregationExecutor
+            executor;
+
+    public DashboardAggregationService(
+            DashboardAggregationExecutor executor) {
+
+        this.executor =
+                executor;
+    }
+
+    public int calculate(
+            long importJobId,
+            AggregationDefinition definition) {
+
+        return executor.execute(
+                importJobId,
+                definition);
+    }
+}

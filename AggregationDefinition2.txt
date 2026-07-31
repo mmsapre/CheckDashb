@@ -1,0 +1,15 @@
+package com.msys.vulnerability.aggregation.model;
+
+public record AggregationDefinition(
+
+        String code,
+
+        String chartName,
+
+        String chartType,
+
+        String sql,
+
+        int displayOrder
+) {
+}

@@ -1,0 +1,569 @@
+CREATE TABLE dashboard_aggregation_definition
+(
+    aggregation_id          BIGSERIAL PRIMARY KEY,
+
+    aggregation_code        VARCHAR(100) NOT NULL UNIQUE,
+
+    aggregation_name        VARCHAR(200) NOT NULL,
+
+    chart_type              VARCHAR(50) NOT NULL,
+
+    display_order           INTEGER NOT NULL,
+
+    enabled                 BOOLEAN NOT NULL DEFAULT TRUE,
+
+    description             VARCHAR(1000),
+
+    aggregation_sql         TEXT NOT NULL,
+
+    created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_dashboard_aggregation_enabled
+ON dashboard_aggregation_definition
+(
+    enabled,
+    display_order
+);
+
+
+CREATE TABLE dashboard_result
+(
+    dashboard_result_id     BIGSERIAL PRIMARY KEY,
+
+    import_job_id           BIGINT NOT NULL,
+
+    aggregation_code        VARCHAR(100) NOT NULL,
+
+    category                VARCHAR(200),
+
+    series                  VARCHAR(200),
+
+    sub_category            VARCHAR(200),
+
+    metric_value            NUMERIC,
+
+    secondary_value         NUMERIC,
+
+    tertiary_value          NUMERIC,
+
+    sort_order              INTEGER,
+
+    payload                 JSONB,
+
+    calculated_at           TIMESTAMP NOT NULL
+);
+
+CREATE INDEX idx_dashboard_result_import
+ON dashboard_result
+(
+    import_job_id,
+    aggregation_code
+);
+
+CREATE INDEX idx_dashboard_result_latest
+ON dashboard_result
+(
+    calculated_at DESC
+);
+
+
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    description,
+    aggregation_sql
+)
+VALUES
+(
+'JAWS_RATIO',
+
+'JAWS Ratio',
+
+'KPI',
+
+10,
+
+TRUE,
+
+'Overall JAWS compliance',
+
+$$
+
+SELECT
+
+    :importJobId                                   AS import_job_id,
+
+    'JAWS_RATIO'                                   AS aggregation_code,
+
+    'Overall'                                      AS category,
+
+    'JAWS Ratio'                                   AS series,
+
+    NULL                                           AS sub_category,
+
+    ROUND(
+        SUM(
+            CASE
+                WHEN jaws='Y'
+                THEN 1
+                ELSE 0
+            END
+        ) *100.0 / COUNT(*),
+        2
+    )                                              AS metric_value,
+
+    NULL                                           AS secondary_value,
+
+    NULL                                           AS tertiary_value,
+
+    1                                              AS sort_order,
+
+    '{}'::jsonb                                    AS payload,
+
+    CURRENT_TIMESTAMP                              AS calculated_at
+
+FROM vulnerability_finding
+
+WHERE import_job_id=:importJobId
+
+$$
+):
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    description,
+    aggregation_sql
+)
+VALUES
+(
+'RISK_POSTURE',
+
+'Risk Posture',
+
+'DONUT',
+
+20,
+
+TRUE,
+
+'Risk distribution',
+
+$$
+
+SELECT
+
+    :importJobId,
+
+    'RISK_POSTURE',
+
+    severity,
+
+    severity,
+
+    NULL,
+
+    COUNT(*),
+
+    NULL,
+
+    NULL,
+
+    ROW_NUMBER()
+        OVER(
+            ORDER BY severity
+        ),
+
+    '{}'::jsonb,
+
+    CURRENT_TIMESTAMP
+
+FROM vulnerability_finding
+
+WHERE import_job_id=:importJobId
+
+GROUP BY severity
+
+$$
+);
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    description,
+    aggregation_sql
+)
+VALUES
+(
+'TOP_TECH_STACK',
+
+'Top Technology',
+
+'BAR',
+
+30,
+
+TRUE,
+
+'Top technologies',
+
+$$
+
+SELECT
+
+    :importJobId,
+
+    'TOP_TECH_STACK',
+
+    technology,
+
+    technology,
+
+    NULL,
+
+    COUNT(*),
+
+    NULL,
+
+    NULL,
+
+    ROW_NUMBER()
+       OVER(
+            ORDER BY COUNT(*) DESC
+       ),
+
+    '{}'::jsonb,
+
+    CURRENT_TIMESTAMP
+
+FROM vulnerability_finding
+
+WHERE import_job_id=:importJobId
+
+GROUP BY technology
+
+ORDER BY COUNT(*) DESC
+
+LIMIT 10
+
+$$
+);
+
+
+INSERT INTO vuln.dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    aggregation_type,
+    query_sql,
+    display_order,
+    enabled
+)
+VALUES
+(
+    'EXPOSURE_SUMMARY',
+    'Exposure at a Glance',
+    'KPI_GROUP',
+    $sql$
+    SELECT *
+    FROM
+    (
+        SELECT
+            'Critical open'::VARCHAR AS category,
+            NULL::VARCHAR AS series,
+            NULL::VARCHAR AS sub_category,
+            COUNT(*)::NUMERIC AS metric_value,
+            NULL::NUMERIC AS secondary_value,
+            NULL::NUMERIC AS tertiary_value,
+            NULL::DATE AS period_start,
+            1 AS sort_order,
+            jsonb_build_object('unit', 'COUNT') AS payload
+        FROM vuln.vulnerability_finding
+        WHERE import_job_id = :importJobId
+          AND UPPER(COALESCE(severity, '')) = 'CRITICAL'
+          AND UPPER(COALESCE(finding_status, 'OPEN'))
+              NOT IN ('CLOSED', 'RESOLVED')
+
+        UNION ALL
+
+        SELECT
+            'KEV exploited open',
+            NULL,
+            NULL,
+            COUNT(*)::NUMERIC,
+            NULL,
+            NULL,
+            NULL,
+            2,
+            jsonb_build_object('unit', 'COUNT')
+        FROM vuln.vulnerability_finding
+        WHERE import_job_id = :importJobId
+          AND COALESCE(kev, FALSE) = TRUE
+          AND UPPER(COALESCE(finding_status, 'OPEN'))
+              NOT IN ('CLOSED', 'RESOLVED')
+
+        UNION ALL
+
+        SELECT
+            'Network attack vector',
+            NULL,
+            NULL,
+            COUNT(*)::NUMERIC,
+            NULL,
+            NULL,
+            NULL,
+            3,
+            jsonb_build_object('unit', 'COUNT')
+        FROM vuln.vulnerability_finding
+        WHERE import_job_id = :importJobId
+          AND UPPER(COALESCE(attack_vector, '')) = 'NETWORK'
+
+        UNION ALL
+
+        SELECT
+            'Awaiting mitigation',
+            NULL,
+            NULL,
+            COUNT(*)::NUMERIC,
+            NULL,
+            NULL,
+            NULL,
+            4,
+            jsonb_build_object('unit', 'COUNT')
+        FROM vuln.vulnerability_finding
+        WHERE import_job_id = :importJobId
+          AND UPPER(COALESCE(mitigation_status, 'AWAITING'))
+              NOT IN ('MITIGATED', 'COMPLETED', 'CLOSED', 'RESOLVED')
+    ) summary
+    $sql$,
+    3,
+    TRUE
+)
+ON CONFLICT (aggregation_code)
+DO UPDATE SET
+    query_sql = EXCLUDED.query_sql,
+    enabled = EXCLUDED.enabled,
+    updated_at = CURRENT_TIMESTAMP;
+
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'TOP_TECH_STACK',
+    'Top Technology Stack',
+    'BAR',
+    30,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'TOP_TECH_STACK',
+    technology,
+    technology,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(
+        ORDER BY COUNT(*) DESC),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY technology
+LIMIT 10
+$$
+);
+
+
+INSERT INTO vuln.dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    aggregation_type,
+    query_sql,
+    display_order,
+    enabled
+)
+VALUES
+(
+    'ATTACK_SURFACE',
+    'Attack Surface',
+    'KPI',
+    $sql$
+    SELECT
+        'Network-borne'::VARCHAR AS category,
+        NULL::VARCHAR AS series,
+        NULL::VARCHAR AS sub_category,
+
+        ROUND(
+            100.0 *
+            COUNT(*) FILTER
+            (
+                WHERE UPPER(COALESCE(attack_vector, '')) = 'NETWORK'
+            )
+            /
+            NULLIF(COUNT(*), 0),
+            2
+        )::NUMERIC AS metric_value,
+
+        COUNT(*) FILTER
+        (
+            WHERE UPPER(COALESCE(attack_vector, '')) = 'NETWORK'
+        )::NUMERIC AS secondary_value,
+
+        COUNT(*)::NUMERIC AS tertiary_value,
+
+        NULL::DATE AS period_start,
+        1 AS sort_order,
+
+        jsonb_build_object(
+            'unit', 'PERCENT',
+            'description', 'Remotely reachable vulnerabilities'
+        ) AS payload
+
+    FROM vuln.vulnerability_finding
+    WHERE import_job_id = :importJobId
+    $sql$,
+    4,
+    TRUE
+)
+ON CONFLICT (aggregation_code)
+DO UPDATE SET
+    query_sql = EXCLUDED.query_sql,
+    enabled = EXCLUDED.enabled,
+    updated_at = CURRENT_TIMESTAMP;
+
+
+
+INSERT INTO vuln.dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    aggregation_type,
+    query_sql,
+    display_order,
+    enabled
+)
+VALUES
+(
+    'TOP_TECH_STACK',
+    'Top Technology Stack Risk',
+    'TOP_KPI',
+    $sql$
+    SELECT
+        COALESCE(NULLIF(TRIM(asset_os), ''), 'UNKNOWN') AS category,
+        'Awaiting mitigation'::VARCHAR AS series,
+        NULL::VARCHAR AS sub_category,
+
+        COUNT(*)::NUMERIC AS metric_value,
+        NULL::NUMERIC AS secondary_value,
+        NULL::NUMERIC AS tertiary_value,
+
+        NULL::DATE AS period_start,
+        1 AS sort_order,
+
+        jsonb_build_object(
+            'technology', COALESCE(NULLIF(TRIM(asset_os), ''), 'UNKNOWN')
+        ) AS payload
+
+    FROM vuln.vulnerability_finding
+    WHERE import_job_id = :importJobId
+      AND UPPER(COALESCE(mitigation_status, 'AWAITING'))
+          NOT IN ('MITIGATED', 'COMPLETED', 'CLOSED', 'RESOLVED')
+    GROUP BY asset_os
+    ORDER BY COUNT(*) DESC
+    LIMIT 1
+    $sql$,
+    5,
+    TRUE
+)
+ON CONFLICT (aggregation_code)
+DO UPDATE SET
+    query_sql = EXCLUDED.query_sql,
+    enabled = EXCLUDED.enabled,
+    updated_at = CURRENT_TIMESTAMP;
+
+
+INSERT INTO vuln.dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    aggregation_type,
+    query_sql,
+    display_order,
+    enabled
+)
+VALUES
+(
+    'TOP_EXPOSED_SERVICE',
+    'Most Exposed Service',
+    'TOP_KPI',
+    $sql$
+    SELECT
+        COALESCE(
+            NULLIF(TRIM(application_service_name), ''),
+            NULLIF(TRIM(it_service), ''),
+            'UNKNOWN'
+        ) AS category,
+
+        'Awaiting mitigation'::VARCHAR AS series,
+        NULL::VARCHAR AS sub_category,
+
+        COUNT(*)::NUMERIC AS metric_value,
+        NULL::NUMERIC AS secondary_value,
+        NULL::NUMERIC AS tertiary_value,
+
+        NULL::DATE AS period_start,
+        1 AS sort_order,
+
+        jsonb_build_object(
+            'serviceId', MAX(application_service_id)
+        ) AS payload
+
+    FROM vuln.vulnerability_finding
+    WHERE import_job_id = :importJobId
+      AND UPPER(COALESCE(mitigation_status, 'AWAITING'))
+          NOT IN ('MITIGATED', 'COMPLETED', 'CLOSED', 'RESOLVED')
+    GROUP BY
+        COALESCE(
+            NULLIF(TRIM(application_service_name), ''),
+            NULLIF(TRIM(it_service), ''),
+            'UNKNOWN'
+        )
+    ORDER BY COUNT(*) DESC
+    LIMIT 1
+    $sql$,
+    6,
+    TRUE
+)
+ON CONFLICT (aggregation_code)
+DO UPDATE SET
+    query_sql = EXCLUDED.query_sql,
+    enabled = EXCLUDED.enabled,
+    updated_at = CURRENT_TIMESTAMP;
+

@@ -1,0 +1,317 @@
+-- ============================================================================
+-- JAWS RATIO
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'JAWS_RATIO',
+    'JAWS Ratio',
+    'KPI',
+    10,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'JAWS_RATIO',
+    'Overall',
+    'JAWS Ratio',
+    NULL,
+    ROUND(
+        SUM(CASE WHEN jaws='Y' THEN 1 ELSE 0 END)
+        *100.0/COUNT(*),2),
+    NULL,
+    NULL,
+    1,
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+$$
+);
+
+-- ============================================================================
+-- RISK POSTURE
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'RISK_POSTURE',
+    'Risk Posture',
+    'DONUT',
+    20,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'RISK_POSTURE',
+    severity,
+    severity,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(ORDER BY severity),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY severity
+$$
+);
+
+-- ============================================================================
+-- EXPOSURE SUMMARY
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'EXPOSURE_SUMMARY',
+    'Exposure Summary',
+    'CARD',
+    30,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'EXPOSURE_SUMMARY',
+    exposure_type,
+    exposure_type,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(ORDER BY exposure_type),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY exposure_type
+$$
+);
+
+-- ============================================================================
+-- ATTACK SURFACE
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'ATTACK_SURFACE',
+    'Attack Surface',
+    'BAR',
+    40,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'ATTACK_SURFACE',
+    internet_facing,
+    internet_facing,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(ORDER BY COUNT(*) DESC),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY internet_facing
+$$
+);
+
+-- ============================================================================
+-- TOP TECHNOLOGY STACK
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'TOP_TECH_STACK',
+    'Top Technology Stack',
+    'BAR',
+    50,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'TOP_TECH_STACK',
+    technology,
+    technology,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(ORDER BY COUNT(*) DESC),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY technology
+ORDER BY COUNT(*) DESC
+LIMIT 10
+$$
+);
+
+-- ============================================================================
+-- TOP EXPOSED SERVICES
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'TOP_EXPOSED_SERVICES',
+    'Top Exposed Services',
+    'BAR',
+    60,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'TOP_EXPOSED_SERVICES',
+    service_name,
+    service_name,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(ORDER BY COUNT(*) DESC),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY service_name
+ORDER BY COUNT(*) DESC
+LIMIT 10
+$$
+);
+
+-- ============================================================================
+-- L5 DEPARTMENT RISK
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'L5_DEPARTMENT_RISK',
+    'L5 Department Risk',
+    'BAR',
+    70,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'L5_DEPARTMENT_RISK',
+    l5_department,
+    l5_department,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(ORDER BY COUNT(*) DESC),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY l5_department
+ORDER BY COUNT(*) DESC
+$$
+);
+
+-- ============================================================================
+-- SERVICE EXPOSURE
+-- ============================================================================
+
+INSERT INTO dashboard_aggregation_definition
+(
+    aggregation_code,
+    aggregation_name,
+    chart_type,
+    display_order,
+    enabled,
+    aggregation_sql
+)
+VALUES
+(
+    'SERVICE_EXPOSURE',
+    'Service Exposure',
+    'TABLE',
+    80,
+    TRUE,
+$$
+SELECT
+    :importJobId,
+    'SERVICE_EXPOSURE',
+    service_name,
+    severity,
+    NULL,
+    COUNT(*),
+    NULL,
+    NULL,
+    ROW_NUMBER() OVER(PARTITION BY service_name ORDER BY severity),
+    '{}'::jsonb,
+    CURRENT_TIMESTAMP
+FROM vulnerability_finding
+WHERE import_job_id=:importJobId
+GROUP BY service_name,severity
+$$
+);

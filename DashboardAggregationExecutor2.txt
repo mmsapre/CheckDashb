@@ -1,0 +1,54 @@
+package com.msys.vulnerability.dashboard.executor;
+
+import com.msys.vulnerability.dashboard.model.AggregationDefinition;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+public class DashboardAggregationExecutor {
+
+    private final NamedParameterJdbcTemplate
+            jdbcTemplate;
+
+    public DashboardAggregationExecutor(
+            NamedParameterJdbcTemplate jdbcTemplate) {
+
+        this.jdbcTemplate =
+                jdbcTemplate;
+    }
+
+    public int execute(
+            long importJobId,
+            AggregationDefinition definition) {
+
+        String sql =
+                """
+                INSERT INTO dashboard_result
+                (
+                    import_job_id,
+                    aggregation_code,
+                    category,
+                    series,
+                    sub_category,
+                    metric_value,
+                    secondary_value,
+                    tertiary_value,
+                    sort_order,
+                    payload,
+                    calculated_at
+                )
+                %s
+                """.formatted(
+                        definition.getAggregationSql());
+
+        MapSqlParameterSource parameters =
+                new MapSqlParameterSource();
+
+        parameters.addValue(
+                "importJobId",
+                importJobId);
+
+        return jdbcTemplate.update(
+                sql,
+                parameters);
+    }
+}

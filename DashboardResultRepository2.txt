@@ -1,0 +1,18 @@
+package com.msys.vulnerability.dashboard.repository;
+
+import com.msys.vulnerability.dashboard.model.DashboardResult;
+
+import java.util.List;
+
+public interface DashboardResultRepository {
+
+    List<DashboardResult> findLatest();
+
+    List<DashboardResult> findByImportJobId(
+            long importJobId);
+
+    List<DashboardResult> findByAggregation(
+            long importJobId,
+            String aggregationCode);
+
+}

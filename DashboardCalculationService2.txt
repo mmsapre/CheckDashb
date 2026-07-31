@@ -1,0 +1,61 @@
+package com.msys.vulnerability.dashboard.service;
+
+import com.msys.vulnerability.dashboard.model.AggregationDefinition;
+import com.msys.vulnerability.dashboard.model.DashboardCalculationResult;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+
+public class DashboardCalculationService {
+
+    private final AggregationDefinitionService
+            definitionService;
+
+    private final DashboardAggregationService
+            aggregationService;
+
+    public DashboardCalculationService(
+            AggregationDefinitionService definitionService,
+            DashboardAggregationService aggregationService) {
+
+        this.definitionService =
+                definitionService;
+
+        this.aggregationService =
+                aggregationService;
+    }
+
+    public DashboardCalculationResult calculate(
+            long importJobId) {
+
+        Instant start =
+                Instant.now();
+
+        List<AggregationDefinition> definitions =
+                definitionService.getEnabled();
+
+        int rows = 0;
+
+        for (AggregationDefinition definition : definitions) {
+
+            rows += aggregationService.calculate(
+                    importJobId,
+                    definition);
+        }
+
+        return new DashboardCalculationResult(
+
+                importJobId,
+
+                definitions.size(),
+
+                rows,
+
+                Duration.between(
+                        start,
+                        Instant.now())
+
+        );
+    }
+}

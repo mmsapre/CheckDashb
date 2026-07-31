@@ -1,0 +1,49 @@
+package com.msys.vulnerability.dashboard.model;
+
+import java.time.Duration;
+
+public class DashboardCalculationResult {
+
+    private final long importJobId;
+
+    private final int aggregationsExecuted;
+
+    private final int rowsCreated;
+
+    private final Duration executionTime;
+
+    public DashboardCalculationResult(
+            long importJobId,
+            int aggregationsExecuted,
+            int rowsCreated,
+            Duration executionTime) {
+
+        this.importJobId =
+                importJobId;
+
+        this.aggregationsExecuted =
+                aggregationsExecuted;
+
+        this.rowsCreated =
+                rowsCreated;
+
+        this.executionTime =
+                executionTime;
+    }
+
+    public long getImportJobId() {
+        return importJobId;
+    }
+
+    public int getAggregationsExecuted() {
+        return aggregationsExecuted;
+    }
+
+    public int getRowsCreated() {
+        return rowsCreated;
+    }
+
+    public Duration getExecutionTime() {
+        return executionTime;
+    }
+}

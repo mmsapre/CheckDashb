@@ -1,0 +1,22 @@
+package com.msys.vulnerability.aggregation.model;
+
+import java.time.Duration;
+
+public record DashboardCalculationResult(
+
+        int aggregationsExecuted,
+
+        int rowsCreated,
+
+        Duration executionTime
+) {
+
+    public static DashboardCalculationResult empty() {
+
+        return new DashboardCalculationResult(
+                0,
+                0,
+                Duration.ZERO
+        );
+    }
+}

@@ -1,0 +1,18 @@
+package com.msys.vulnerability.importjob.model;
+
+public enum ImportJobStatus {
+
+    RECEIVED,
+
+    NORMALIZING,
+
+    EXPORTING_FINDINGS,
+
+    COPYING_FINDINGS,
+
+    AGGREGATING,
+
+    COMPLETED,
+
+    FAILED
+}

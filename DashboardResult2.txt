@@ -1,0 +1,33 @@
+package com.msys.vulnerability.dashboard.model;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public class DashboardResult {
+
+    private Long id;
+
+    private Long importJobId;
+
+    private String aggregationCode;
+
+    private String category;
+
+    private String series;
+
+    private String subCategory;
+
+    private BigDecimal metricValue;
+
+    private BigDecimal secondaryValue;
+
+    private BigDecimal tertiaryValue;
+
+    private Integer sortOrder;
+
+    private String payload;
+
+    private LocalDateTime calculatedAt;
+
+    // getters/setters
+}

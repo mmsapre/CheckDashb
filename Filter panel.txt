@@ -1,0 +1,118 @@
+import type { DashboardFilter } from "../model/dashboard";
+
+interface Props {
+    value: DashboardFilter;
+    onChange: (filter: DashboardFilter) => void;
+}
+
+export function FilterPanel({ value, onChange }: Props) {
+
+    function setSeverity(
+        severity: string,
+        checked: boolean
+    ) {
+        const current = new Set(value.severities);
+
+        if (checked) {
+            current.add(severity);
+        } else {
+            current.delete(severity);
+        }
+
+        onChange({
+            ...value,
+            severities: Array.from(current)
+        });
+    }
+
+    return (
+        <aside className="filter-panel">
+            <h3>Filters</h3>
+            <p className="filter-hint">
+                Apply to every tab
+            </p>
+
+            <div className="filter-group">
+                <label className="filter-title">
+                    Severity
+                </label>
+
+                {["CRITICAL", "HIGH"].map(severity => (
+                    <label
+                        className="checkbox-row"
+                        key={severity}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={value.severities.includes(
+                                severity
+                            )}
+                            onChange={event =>
+                                setSeverity(
+                                    severity,
+                                    event.target.checked
+                                )
+                            }
+                        />
+
+                        {severity}
+                    </label>
+                ))}
+            </div>
+
+            <div className="filter-group">
+                <label className="checkbox-row">
+                    <input
+                        type="checkbox"
+                        checked={value.kevOnly}
+                        onChange={event =>
+                            onChange({
+                                ...value,
+                                kevOnly: event.target.checked
+                            })
+                        }
+                    />
+
+                    KEV — Known Exploited only
+                </label>
+            </div>
+
+            <div className="filter-group">
+                <label className="filter-title">
+                    Minimum EPSS
+                </label>
+
+                <select
+                    value={value.minimumEpss ?? ""}
+                    onChange={event =>
+                        onChange({
+                            ...value,
+                            minimumEpss:
+                                event.target.value === ""
+                                    ? null
+                                    : Number(event.target.value)
+                        })
+                    }
+                >
+                    <option value="">All</option>
+                    <option value="0.01">1% and above</option>
+                    <option value="0.10">10% and above</option>
+                    <option value="0.50">50% and above</option>
+                </select>
+            </div>
+
+            <button
+                type="button"
+                className="reset-button"
+                onClick={() =>
+                    onChange({
+                        severities: ["CRITICAL", "HIGH"],
+                        kevOnly: false
+                    })
+                }
+            >
+                Reset all filters
+            </button>
+        </aside>
+    );
+}

@@ -1,0 +1,95 @@
+package com.msys.vulnerability.dashboard.repository;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msys.vulnerability.dashboard.dto.DashboardDataPoint;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public class DashboardQueryRepository {
+
+    private final JdbcClient jdbcClient;
+    private final ObjectMapper objectMapper;
+
+    public DashboardQueryRepository(
+            JdbcClient jdbcClient,
+            ObjectMapper objectMapper) {
+
+        this.jdbcClient = jdbcClient;
+        this.objectMapper = objectMapper;
+    }
+
+    public Optional<Long> latestCompletedImportJobId() {
+
+        return jdbcClient.sql("""
+                SELECT import_job_id
+                FROM vuln.import_job
+                WHERE status = 'COMPLETED'
+                ORDER BY completed_at DESC,
+                         import_job_id DESC
+                LIMIT 1
+                """)
+                .query(Long.class)
+                .optional();
+    }
+
+    public List<DashboardDataPoint> findAggregation(
+            long importJobId,
+            String aggregationCode) {
+
+        return jdbcClient.sql("""
+                SELECT
+                    category,
+                    series,
+                    sub_category,
+                    metric_value,
+                    secondary_value,
+                    tertiary_value,
+                    sort_order,
+                    payload
+                FROM vuln.dashboard_result
+                WHERE import_job_id = :importJobId
+                  AND aggregation_code = :aggregationCode
+                ORDER BY sort_order,
+                         metric_value DESC NULLS LAST
+                """)
+                .param("importJobId", importJobId)
+                .param("aggregationCode", aggregationCode)
+                .query((rs, rowNumber) ->
+                        new DashboardDataPoint(
+                                rs.getString("category"),
+                                rs.getString("series"),
+                                rs.getString("sub_category"),
+                                rs.getBigDecimal("metric_value"),
+                                rs.getBigDecimal("secondary_value"),
+                                rs.getBigDecimal("tertiary_value"),
+                                rs.getInt("sort_order"),
+                                parseJson(
+                                        rs.getString("payload")
+                                )
+                        )
+                )
+                .list();
+    }
+
+    private JsonNode parseJson(String value) {
+
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readTree(value);
+
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Invalid dashboard JSON payload",
+                    exception
+            );
+        }
+    }
+}

@@ -1,0 +1,17 @@
+package com.msys.vulnerability.dashboard.dto;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+import java.math.BigDecimal;
+
+public record DashboardDataPoint(
+        String category,
+        String series,
+        String subCategory,
+        BigDecimal value,
+        BigDecimal secondaryValue,
+        BigDecimal tertiaryValue,
+        int sortOrder,
+        JsonNode payload
+) {
+}

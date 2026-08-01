@@ -1,0 +1,295 @@
+package com.msys.vulnerability.dashboard.service;
+
+import com.msys.vulnerability.dashboard.dto.*;
+import com.msys.vulnerability.dashboard.repository.DashboardQueryRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+
+@Service
+public class DashboardQueryService {
+
+    private final DashboardQueryRepository repository;
+
+    public DashboardQueryService(
+            DashboardQueryRepository repository) {
+
+        this.repository = repository;
+    }
+
+    public ExecutiveDashboardResponse latestExecutive(
+            DashboardFilter filter) {
+
+        long importJobId =
+                repository.latestCompletedImportJobId()
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "No completed import is available"
+                                )
+                        );
+
+        return executive(importJobId, filter);
+    }
+
+    public ExecutiveDashboardResponse executive(
+            long importJobId,
+            DashboardFilter filter) {
+
+        List<DashboardDataPoint> jaws =
+                repository.findAggregation(
+                        importJobId,
+                        "JAWS_RATIO"
+                );
+
+        List<DashboardDataPoint> riskPosture =
+                repository.findAggregation(
+                        importJobId,
+                        "RISK_POSTURE"
+                );
+
+        List<DashboardDataPoint> exposure =
+                repository.findAggregation(
+                        importJobId,
+                        "EXPOSURE_SUMMARY"
+                );
+
+        List<DashboardDataPoint> attackSurface =
+                repository.findAggregation(
+                        importJobId,
+                        "ATTACK_SURFACE"
+                );
+
+        List<DashboardDataPoint> topTechnology =
+                repository.findAggregation(
+                        importJobId,
+                        "TOP_TECH_STACK"
+                );
+
+        List<DashboardDataPoint> topService =
+                repository.findAggregation(
+                        importJobId,
+                        "TOP_EXPOSED_SERVICE"
+                );
+
+        List<DashboardDataPoint> topL5 =
+                repository.findAggregation(
+                        importJobId,
+                        "L5_DEPARTMENT_RISK"
+                );
+
+        List<DashboardDataPoint> services =
+                repository.findAggregation(
+                        importJobId,
+                        "SERVICE_EXPOSURE"
+                );
+
+        BigDecimal jawsRatio =
+                firstValue(jaws);
+
+        List<KpiValue> exposureCards =
+                exposure.stream()
+                        .map(point ->
+                                new KpiValue(
+                                        normalizeCode(
+                                                point.category()
+                                        ),
+                                        point.category(),
+                                        point.value(),
+                                        "COUNT",
+                                        null
+                                )
+                        )
+                        .toList();
+
+        return new ExecutiveDashboardResponse(
+                importJobId,
+                OffsetDateTime.now(),
+
+                jawsRatio,
+                buildTrendText(jaws),
+
+                riskPosture,
+                exposureCards,
+
+                toKpi(
+                        "ATTACK_SURFACE",
+                        "Attack surface",
+                        attackSurface,
+                        "PERCENT"
+                ),
+
+                toKpi(
+                        "TOP_TECH_STACK",
+                        "Top tech-stack risk",
+                        topTechnology,
+                        "COUNT"
+                ),
+
+                toKpi(
+                        "TOP_EXPOSED_SERVICE",
+                        "Most exposed service",
+                        topService,
+                        "COUNT"
+                ),
+
+                new KpiValue(
+                        "OVERALL_JAWS_RATIO",
+                        "Overall JAWS ratio",
+                        jawsRatio,
+                        "PERCENT",
+                        jawsRatio.compareTo(
+                                BigDecimal.valueOf(100)
+                        ) >= 0
+                                ? "mitigation keeping pace"
+                                : "backlog growing"
+                ),
+
+                topL5,
+                services,
+
+                buildExecutiveInsights(
+                        jawsRatio,
+                        exposureCards,
+                        topL5,
+                        services
+                )
+        );
+    }
+
+    private KpiValue toKpi(
+            String code,
+            String label,
+            List<DashboardDataPoint> points,
+            String unit) {
+
+        if (points.isEmpty()) {
+            return new KpiValue(
+                    code,
+                    label,
+                    BigDecimal.ZERO,
+                    unit,
+                    null
+            );
+        }
+
+        DashboardDataPoint point =
+                points.getFirst();
+
+        String resultLabel =
+                point.category() == null
+                        ? label
+                        : point.category();
+
+        return new KpiValue(
+                code,
+                resultLabel,
+                point.value(),
+                unit,
+                point.series()
+        );
+    }
+
+    private BigDecimal firstValue(
+            List<DashboardDataPoint> points) {
+
+        if (points.isEmpty() ||
+                points.getFirst().value() == null) {
+
+            return BigDecimal.ZERO;
+        }
+
+        return points.getFirst().value();
+    }
+
+    private String buildTrendText(
+            List<DashboardDataPoint> jaws) {
+
+        if (jaws.isEmpty()) {
+            return "No ratio data available";
+        }
+
+        BigDecimal ratio =
+                firstValue(jaws);
+
+        if (ratio.compareTo(
+                BigDecimal.valueOf(100)) >= 0) {
+
+            return "mitigation is keeping pace with identification";
+        }
+
+        return "identification outpaces mitigation";
+    }
+
+    private List<String> buildExecutiveInsights(
+            BigDecimal jawsRatio,
+            List<KpiValue> exposure,
+            List<DashboardDataPoint> topL5,
+            List<DashboardDataPoint> services) {
+
+        java.util.ArrayList<String> insights =
+                new java.util.ArrayList<>();
+
+        insights.add(
+                "Overall JAWS ratio is " +
+                        jawsRatio.stripTrailingZeros()
+                                .toPlainString() +
+                        "%."
+        );
+
+        exposure.stream()
+                .filter(item ->
+                        item.code().contains("AWAITING"))
+                .findFirst()
+                .ifPresent(item ->
+                        insights.add(
+                                item.value()
+                                        .toBigInteger()
+                                        .toString() +
+                                " vulnerabilities await mitigation."
+                        )
+                );
+
+        if (!topL5.isEmpty()) {
+            DashboardDataPoint first =
+                    topL5.getFirst();
+
+            insights.add(
+                    "Largest L5 backlog is " +
+                            first.category() +
+                            " with " +
+                            first.value()
+                                    .toBigInteger() +
+                            " findings."
+            );
+        }
+
+        if (!services.isEmpty()) {
+            DashboardDataPoint first =
+                    services.getFirst();
+
+            insights.add(
+                    "Most exposed service is " +
+                            first.category() +
+                            " with " +
+                            first.value()
+                                    .toBigInteger() +
+                            " open findings."
+            );
+        }
+
+        return List.copyOf(insights);
+    }
+
+    private String normalizeCode(String value) {
+
+        if (value == null) {
+            return "UNKNOWN";
+        }
+
+        return value.trim()
+                .toUpperCase()
+                .replaceAll("[^A-Z0-9]+", "_");
+    }
+}

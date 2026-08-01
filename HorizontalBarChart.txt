@@ -1,0 +1,70 @@
+import ReactECharts from "echarts-for-react";
+import type { DashboardDataPoint } from "../model/dashboard";
+
+interface Props {
+    data: DashboardDataPoint[];
+    barName: string;
+}
+
+export function HorizontalBarChart({
+    data,
+    barName
+}: Props) {
+
+    const ordered = [...data]
+        .sort((a, b) => b.value - a.value);
+
+    const option = {
+        grid: {
+            top: 10,
+            left: 210,
+            right: 35,
+            bottom: 35
+        },
+
+        tooltip: {
+            trigger: "axis",
+            axisPointer: {
+                type: "shadow"
+            }
+        },
+
+        xAxis: {
+            type: "value",
+            name: "awaiting",
+            nameLocation: "middle",
+            nameGap: 25
+        },
+
+        yAxis: {
+            type: "category",
+            inverse: true,
+            data: ordered.map(item => item.category),
+            axisLabel: {
+                width: 190,
+                overflow: "truncate"
+            }
+        },
+
+        series: [
+            {
+                name: barName,
+                type: "bar",
+                data: ordered.map(item => item.value),
+                label: {
+                    show: true,
+                    position: "insideRight",
+                    formatter: ({ value }: { value: number }) =>
+                        value.toLocaleString()
+                }
+            }
+        ]
+    };
+
+    return (
+        <ReactECharts
+            option={option}
+            style={{ height: 340 }}
+        />
+    );
+}

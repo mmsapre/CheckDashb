@@ -1,0 +1,48 @@
+@Component
+public class ReactDevServer
+        implements SmartLifecycle {
+
+    private Process process;
+
+    @Value("${app.react.enabled:true}")
+    private boolean enabled;
+
+    @Value("${app.react.path:frontend}")
+    private String path;
+
+    @Override
+    public void start() {
+
+        if (!enabled) {
+            return;
+        }
+
+        try {
+
+            process =
+                    new ProcessBuilder(
+                            "npm",
+                            "run",
+                            "dev")
+                            .directory(new File(path))
+                            .inheritIO()
+                            .start();
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void stop() {
+
+        if (process != null) {
+            process.destroy();
+        }
+    }
+
+    @Override
+    public boolean isRunning() {
+        return process != null && process.isAlive();
+    }
+}

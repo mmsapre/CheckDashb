@@ -1,0 +1,55 @@
+export interface DashboardDataPoint {
+    category: string;
+    series?: string | null;
+    subCategory?: string | null;
+    value: number;
+    secondaryValue?: number | null;
+    tertiaryValue?: number | null;
+    sortOrder: number;
+    payload?: Record<string, unknown> | null;
+}
+
+export interface KpiValue {
+    code: string;
+    label: string;
+    value: number;
+    unit?: string | null;
+    description?: string | null;
+}
+
+export interface ExecutiveDashboardResponse {
+    importJobId: number;
+    calculatedAt: string;
+
+    jawsRatio: number;
+    jawsTrendText: string;
+
+    riskPosture: DashboardDataPoint[];
+    exposureCards: KpiValue[];
+
+    attackSurface: KpiValue;
+    topTechnology: KpiValue;
+    topExposedService: KpiValue;
+    overallJawsRatio: KpiValue;
+
+    topL5Departments: DashboardDataPoint[];
+    topServices: DashboardDataPoint[];
+
+    insights: string[];
+}
+
+export interface DashboardFilter {
+    severities: string[];
+    kevOnly: boolean;
+    minimumEpss?: number | null;
+    attackVector?: string | null;
+    technology?: string | null;
+    patchAvailable?: boolean | null;
+    region?: string | null;
+    environment?: string | null;
+    assetPriority?: string | null;
+    pladaCriticality?: string | null;
+    findingType?: string | null;
+    fromMonth?: string | null;
+    toMonth?: string | null;
+}

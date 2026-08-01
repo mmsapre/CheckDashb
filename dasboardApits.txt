@@ -1,0 +1,40 @@
+import axios from "axios";
+import type {
+    DashboardFilter,
+    ExecutiveDashboardResponse
+} from "../model/dashboard";
+
+const client = axios.create({
+    baseURL: "/api/v1",
+    timeout: 60000,
+    headers: {
+        "Content-Type": "application/json"
+    }
+});
+
+export async function getLatestExecutiveDashboard(
+    filter: DashboardFilter
+): Promise<ExecutiveDashboardResponse> {
+
+    const response =
+        await client.post<ExecutiveDashboardResponse>(
+            "/dashboard/latest/executive",
+            filter
+        );
+
+    return response.data;
+}
+
+export async function getExecutiveDashboard(
+    importJobId: number,
+    filter: DashboardFilter
+): Promise<ExecutiveDashboardResponse> {
+
+    const response =
+        await client.post<ExecutiveDashboardResponse>(
+            `/dashboard/imports/${importJobId}/executive`,
+            filter
+        );
+
+    return response.data;
+}

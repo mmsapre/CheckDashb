@@ -1,0 +1,79 @@
+import { NavLink, Route, Routes }
+    from "react-router-dom";
+
+import { ExecutiveSummaryPage }
+    from "./pages/ExecutiveSummaryPage";
+
+export default function App() {
+    return (
+        <>
+            <header className="app-header">
+                <div>
+                    <h1>
+                        CIO Vulnerability Insights ·
+                        JAWS Remediation Ratio
+                    </h1>
+
+                    <p>
+                        Identification vs. mitigation velocity
+                        across services and technology stack
+                    </p>
+                </div>
+            </header>
+
+            <nav className="tabs">
+                <NavLink to="/">
+                    Executive Summary
+                </NavLink>
+
+                <NavLink to="/jaws">
+                    JAWS & Velocity
+                </NavLink>
+
+                <NavLink to="/explorer">
+                    Drill-down Explorer
+                </NavLink>
+
+                <NavLink to="/itso">
+                    ITSO View
+                </NavLink>
+
+                <NavLink to="/ssp">
+                    SSP Remediation
+                </NavLink>
+
+                <NavLink to="/forecast">
+                    Forecast
+                </NavLink>
+
+                <NavLink to="/risk">
+                    Risk Breakdown
+                </NavLink>
+
+                <NavLink to="/timeliness">
+                    Timeliness & Patch
+                </NavLink>
+
+                <NavLink to="/repeat">
+                    Repeat Analysis
+                </NavLink>
+            </nav>
+
+            <Routes>
+                <Route
+                    path="/"
+                    element={<ExecutiveSummaryPage/>}
+                />
+
+                <Route
+                    path="*"
+                    element={
+                        <div className="placeholder">
+                            Dashboard page under conversion
+                        </div>
+                    }
+                />
+            </Routes>
+        </>
+    );
+}

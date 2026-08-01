@@ -1,0 +1,38 @@
+package com.msys.vulnerability.dashboard.controller;
+
+import com.msys.vulnerability.dashboard.dto.DashboardFilter;
+import com.msys.vulnerability.dashboard.dto.ExecutiveDashboardResponse;
+import com.msys.vulnerability.dashboard.service.DashboardQueryService;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/dashboard")
+public class DashboardController {
+
+    private final DashboardQueryService dashboardQueryService;
+
+    public DashboardController(
+            DashboardQueryService dashboardQueryService) {
+
+        this.dashboardQueryService =
+                dashboardQueryService;
+    }
+
+    @PostMapping("/latest/executive")
+    public ExecutiveDashboardResponse latestExecutive(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .latestExecutive(filter);
+    }
+
+    @PostMapping(
+            "/imports/{importJobId}/executive")
+    public ExecutiveDashboardResponse executive(
+            @PathVariable long importJobId,
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .executive(importJobId, filter);
+    }
+}

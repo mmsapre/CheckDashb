@@ -1,0 +1,28 @@
+package com.msys.vulnerability.dashboard.dto;
+
+import java.math.BigDecimal;
+import java.time.YearMonth;
+import java.util.List;
+
+public record DashboardFilter(
+        List<String> severities,
+        boolean kevOnly,
+        BigDecimal minimumEpss,
+        String attackVector,
+        String technology,
+        Boolean patchAvailable,
+        String region,
+        String environment,
+        String assetPriority,
+        String pladaCriticality,
+        String findingType,
+        YearMonth fromMonth,
+        YearMonth toMonth
+) {
+    public DashboardFilter {
+        severities =
+                severities == null
+                        ? List.of()
+                        : List.copyOf(severities);
+    }
+}

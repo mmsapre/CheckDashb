@@ -1,0 +1,50 @@
+import ReactECharts from "echarts-for-react";
+import type { DashboardDataPoint } from "../model/dashboard";
+
+interface Props {
+    data: DashboardDataPoint[];
+}
+
+export function RiskDonut({ data }: Props) {
+
+    const option = {
+        tooltip: {
+            trigger: "item",
+            formatter: "{b}: {c} ({d}%)"
+        },
+
+        legend: {
+            bottom: 0,
+            textStyle: {
+                color: "#ffffff"
+            }
+        },
+
+        series: [
+            {
+                name: "Risk posture",
+                type: "pie",
+                radius: ["50%", "72%"],
+                center: ["50%", "44%"],
+                avoidLabelOverlap: true,
+
+                label: {
+                    color: "#ffffff",
+                    formatter: "{d}%"
+                },
+
+                data: data.map(item => ({
+                    name: item.category,
+                    value: item.value
+                }))
+            }
+        ]
+    };
+
+    return (
+        <ReactECharts
+            option={option}
+            style={{ height: 230 }}
+        />
+    );
+}

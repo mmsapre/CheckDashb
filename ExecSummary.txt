@@ -1,0 +1,139 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { getLatestExecutiveDashboard }
+    from "../api/dashboardApi";
+
+import type { DashboardFilter }
+    from "../model/dashboard";
+
+import { FilterPanel }
+    from "../components/FilterPanel";
+
+import { HeroPanel }
+    from "../components/HeroPanel";
+
+import { KpiCard }
+    from "../components/KpiCard";
+
+import { HorizontalBarChart }
+    from "../components/HorizontalBarChart";
+
+const initialFilter: DashboardFilter = {
+    severities: ["CRITICAL", "HIGH"],
+    kevOnly: false
+};
+
+export function ExecutiveSummaryPage() {
+
+    const [filter, setFilter] =
+        useState<DashboardFilter>(initialFilter);
+
+    const dashboardQuery = useQuery({
+        queryKey: ["executive-dashboard", filter],
+
+        queryFn: () =>
+            getLatestExecutiveDashboard(filter),
+
+        staleTime: 30_000
+    });
+
+    if (dashboardQuery.isLoading) {
+        return (
+            <main className="loading">
+                Loading dashboard…
+            </main>
+        );
+    }
+
+    if (dashboardQuery.isError ||
+        !dashboardQuery.data) {
+
+        return (
+            <main className="error">
+                Unable to load dashboard.
+            </main>
+        );
+    }
+
+    const dashboard = dashboardQuery.data;
+
+    return (
+        <div className="dashboard-layout">
+
+            <FilterPanel
+                value={filter}
+                onChange={setFilter}
+            />
+
+            <main className="dashboard-main">
+
+                <HeroPanel
+                    jawsRatio={dashboard.jawsRatio}
+                    trendText={dashboard.jawsTrendText}
+                    riskPosture={dashboard.riskPosture}
+                    exposureCards={dashboard.exposureCards}
+                />
+
+                <section className="lens-grid">
+                    <KpiCard item={dashboard.attackSurface}/>
+                    <KpiCard item={dashboard.topTechnology}/>
+                    <KpiCard item={dashboard.topExposedService}/>
+                    <KpiCard item={dashboard.overallJawsRatio}/>
+                </section>
+
+                <section className="chart-grid">
+
+                    <article className="card">
+                        <h2>
+                            Where risk concentrates —
+                            top L5 teams
+                        </h2>
+
+                        <p className="hint">
+                            Awaiting mitigation by L5
+                            asset department.
+                        </p>
+
+                        <HorizontalBarChart
+                            data={dashboard.topL5Departments}
+                            barName="Awaiting mitigation"
+                        />
+                    </article>
+
+                    <article className="card">
+                        <h2>
+                            Most exposed services
+                        </h2>
+
+                        <p className="hint">
+                            Top IT services by open
+                            vulnerabilities.
+                        </p>
+
+                        <HorizontalBarChart
+                            data={dashboard.topServices}
+                            barName="Open vulnerabilities"
+                        />
+                    </article>
+
+                </section>
+
+                <article className="card insights">
+                    <h2>Executive insights</h2>
+
+                    <ul>
+                        {dashboard.insights.map(
+                            (insight, index) => (
+                                <li key={index}>
+                                    {insight}
+                                </li>
+                            )
+                        )}
+                    </ul>
+                </article>
+
+            </main>
+        </div>
+    );
+}

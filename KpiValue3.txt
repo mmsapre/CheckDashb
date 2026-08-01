@@ -1,0 +1,12 @@
+package com.msys.vulnerability.dashboard.dto;
+
+import java.math.BigDecimal;
+
+public record KpiValue(
+        String code,
+        String label,
+        BigDecimal value,
+        String unit,
+        String description
+) {
+}

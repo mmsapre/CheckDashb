@@ -1,0 +1,27 @@
+package com.msys.vulnerability.dashboard.dto;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+
+public record ExecutiveDashboardResponse(
+        long importJobId,
+        OffsetDateTime calculatedAt,
+
+        BigDecimal jawsRatio,
+        String jawsTrendText,
+
+        List<DashboardDataPoint> riskPosture,
+        List<KpiValue> exposureCards,
+
+        KpiValue attackSurface,
+        KpiValue topTechnology,
+        KpiValue topExposedService,
+        KpiValue overallJawsRatio,
+
+        List<DashboardDataPoint> topL5Departments,
+        List<DashboardDataPoint> topServices,
+
+        List<String> insights
+) {
+}

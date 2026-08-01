@@ -1,0 +1,66 @@
+import type {
+    DashboardDataPoint,
+    KpiValue
+} from "../model/dashboard";
+
+import { KpiCard } from "./KpiCard";
+import { RiskDonut } from "./RiskDonut";
+
+interface Props {
+    jawsRatio: number;
+    trendText: string;
+    riskPosture: DashboardDataPoint[];
+    exposureCards: KpiValue[];
+}
+
+export function HeroPanel({
+    jawsRatio,
+    trendText,
+    riskPosture,
+    exposureCards
+}: Props) {
+
+    return (
+        <section className="hero-panel">
+
+            <div className="hero-ratio">
+                <div className="eyebrow">
+                    JAWS RATIO — MITIGATED ÷ DETECTED
+                </div>
+
+                <div className="hero-ratio-value">
+                    {jawsRatio.toFixed(1)}%
+                </div>
+
+                <div className="hero-trend">
+                    ▼ {trendText}
+                </div>
+            </div>
+
+            <div className="hero-risk">
+                <div className="eyebrow">
+                    RISK POSTURE
+                </div>
+
+                <RiskDonut data={riskPosture}/>
+            </div>
+
+            <div className="hero-exposure">
+                <div className="eyebrow">
+                    EXPOSURE AT A GLANCE
+                </div>
+
+                <div className="hero-kpi-grid">
+                    {exposureCards.map(item => (
+                        <KpiCard
+                            key={item.code}
+                            item={item}
+                            compact
+                        />
+                    ))}
+                </div>
+            </div>
+
+        </section>
+    );
+}

@@ -1,0 +1,25 @@
+import type { KpiValue } from "../model/dashboard";
+
+interface Props {
+    item: KpiValue;
+    compact?: boolean;
+}
+
+export function KpiCard({ item, compact = false }: Props) {
+    return (
+        <article className={compact ? "kpi compact" : "kpi"}>
+            <div className="kpi-label">{item.label}</div>
+
+            <div className="kpi-value">
+                {item.value.toLocaleString()}
+                {item.unit === "PERCENT" ? "%" : ""}
+            </div>
+
+            {item.description && (
+                <div className="kpi-description">
+                    {item.description}
+                </div>
+            )}
+        </article>
+    );
+}

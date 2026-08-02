@@ -1,0 +1,1 @@
+VITE_API_BASE_URL=https://cyberport.company.com/api/v1

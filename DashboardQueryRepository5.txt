@@ -1,0 +1,302 @@
+package com.msys.vulnerability.dashboard.repository;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msys.vulnerability.dashboard.dto.DashboardDataPoint;
+import com.msys.vulnerability.dashboard.dto.DashboardFilter;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@Repository
+public class DashboardQueryRepository {
+
+    private final JdbcClient jdbcClient;
+
+    private final ObjectMapper objectMapper;
+
+    public DashboardQueryRepository(
+            JdbcClient jdbcClient,
+            ObjectMapper objectMapper) {
+
+        this.jdbcClient =
+                jdbcClient;
+
+        this.objectMapper =
+                objectMapper;
+    }
+
+    /*
+     * =====================================================
+     * Latest Import
+     * =====================================================
+     */
+
+    public long findLatestImportJobId() {
+
+        return jdbcClient.sql("""
+                SELECT import_job_id
+                FROM import_job
+                WHERE status='COMPLETED'
+                ORDER BY completed_at DESC
+                LIMIT 1
+                """)
+                .query(Long.class)
+                .optional()
+                .orElse(0L);
+    }
+
+    /*
+     * =====================================================
+     * Generic Aggregation
+     * =====================================================
+     */
+
+    public List<DashboardDataPoint> findAggregation(
+            long importJobId,
+            String aggregationCode,
+            DashboardFilter filter) {
+
+        return jdbcClient.sql("""
+                SELECT
+                    category,
+                    series,
+                    sub_category,
+                    metric_value,
+                    secondary_value,
+                    tertiary_value,
+                    sort_order,
+                    payload
+                FROM dashboard_result
+                WHERE import_job_id = :importJobId
+                  AND aggregation_code = :aggregationCode
+                ORDER BY
+                    sort_order,
+                    metric_value DESC
+                """)
+                .param("importJobId", importJobId)
+                .param("aggregationCode", aggregationCode)
+                .query((rs, rowNum) ->
+                        new DashboardDataPoint(
+
+                                rs.getString("category"),
+
+                                rs.getString("series"),
+
+                                rs.getString("sub_category"),
+
+                                rs.getBigDecimal("metric_value"),
+
+                                rs.getBigDecimal("secondary_value"),
+
+                                rs.getBigDecimal("tertiary_value"),
+
+                                rs.getInt("sort_order"),
+
+                                parsePayload(
+                                        rs.getString("payload"))
+
+                        ))
+                .list();
+    }
+
+    /*
+     * =====================================================
+     * JAWS
+     * =====================================================
+     */
+
+    public BigDecimal findJawsRatio(
+            long importJobId,
+            DashboardFilter filter) {
+
+        List<DashboardDataPoint> result =
+                findAggregation(
+                        importJobId,
+                        "JAWS_RATIO",
+                        filter);
+
+        return result.isEmpty()
+                ? BigDecimal.ZERO
+                : result.get(0).value();
+    }
+
+    /*
+     * =====================================================
+     * Wrapper Methods
+     * =====================================================
+     */
+
+    public List<DashboardDataPoint> findRiskPosture(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "RISK_POSTURE",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findSeverityDistribution(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "SEVERITY_DISTRIBUTION",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findTopTechnology(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "TOP_TECH_STACK",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findTopServices(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "TOP_SERVICES",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findForecast(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "FORECAST",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findRepeatAnalysis(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "REPEAT_ANALYSIS",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findTimeliness(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "TIMELINESS",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findExplorer(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "EXPLORER",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findItso(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "ITSO",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findSsp(
+            long jobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                jobId,
+                "SSP",
+                filter);
+    }
+
+    /*
+     * =====================================================
+     * Filters
+     * =====================================================
+     */
+
+    public Map<String, List<String>> findFilters() {
+
+        Map<String, List<String>> filters =
+                new LinkedHashMap<>();
+
+        filters.put(
+                "severity",
+
+                jdbcClient.sql("""
+                        SELECT DISTINCT severity
+                        FROM vulnerability_finding
+                        ORDER BY severity
+                        """)
+                        .query(String.class)
+                        .list());
+
+        filters.put(
+                "technology",
+
+                jdbcClient.sql("""
+                        SELECT DISTINCT technology
+                        FROM vulnerability_finding
+                        WHERE technology IS NOT NULL
+                        ORDER BY technology
+                        """)
+                        .query(String.class)
+                        .list());
+
+        filters.put(
+                "service",
+
+                jdbcClient.sql("""
+                        SELECT DISTINCT service_name
+                        FROM vulnerability_finding
+                        WHERE service_name IS NOT NULL
+                        ORDER BY service_name
+                        """)
+                        .query(String.class)
+                        .list());
+
+        return filters;
+    }
+
+    private JsonNode parsePayload(
+            String payload) {
+
+        if (payload == null) {
+            return null;
+        }
+
+        try {
+
+            return objectMapper.readTree(
+                    payload);
+
+        } catch (Exception ex) {
+
+            throw new IllegalStateException(
+                    ex);
+
+        }
+    }
+}

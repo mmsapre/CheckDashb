@@ -1,0 +1,60 @@
+export const ApiEndpoints = {
+
+    dashboard: {
+
+        latestExecutive:
+            "/dashboard/latest/executive",
+
+        executive:
+            (importJobId: number) =>
+                `/dashboard/imports/${importJobId}/executive`,
+
+        riskPosture:
+            "/dashboard/latest/risk-posture",
+
+        severityDistribution:
+            "/dashboard/latest/severity-distribution",
+
+        topTechnology:
+            "/dashboard/latest/top-technology",
+
+        topServices:
+            "/dashboard/latest/top-services",
+
+        forecast:
+            "/dashboard/latest/forecast",
+
+        repeatAnalysis:
+            "/dashboard/latest/repeat-analysis",
+
+        timeliness:
+            "/dashboard/latest/timeliness",
+
+        explorer:
+            "/dashboard/latest/explorer",
+
+        itso:
+            "/dashboard/latest/itso",
+
+        ssp:
+            "/dashboard/latest/ssp",
+
+        filters:
+            "/dashboard/filters"
+
+    },
+
+    imports: {
+
+        upload:
+            "/imports",
+
+        jobs:
+            "/imports/jobs",
+
+        latest:
+            "/imports/latest"
+
+    }
+
+};

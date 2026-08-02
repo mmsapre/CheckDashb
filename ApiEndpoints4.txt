@@ -1,0 +1,42 @@
+export const ApiEndpoints = {
+
+    dashboard: {
+
+        latestExecutive:
+            "/dashboard/latest/executive",
+
+        executive:
+            (importJobId: number) =>
+                `/dashboard/imports/${importJobId}/executive`,
+
+        jaws:
+            "/dashboard/latest/jaws",
+
+        risk:
+            "/dashboard/latest/risk",
+
+        forecast:
+            "/dashboard/latest/forecast",
+
+        repeat:
+            "/dashboard/latest/repeat",
+
+        timeliness:
+            "/dashboard/latest/timeliness",
+
+        explorer:
+            "/dashboard/latest/explorer"
+
+    },
+
+    imports: {
+
+        upload:
+            "/imports",
+
+        jobs:
+            "/imports/jobs"
+
+    }
+
+};

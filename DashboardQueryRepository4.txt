@@ -1,0 +1,358 @@
+package com.msys.vulnerability.dashboard.repository;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.msys.vulnerability.dashboard.dto.DashboardDataPoint;
+import com.msys.vulnerability.dashboard.dto.DashboardFilter;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@Repository
+public class DashboardQueryRepository {
+
+    private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    private final ObjectMapper objectMapper;
+
+    public DashboardQueryRepository(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper) {
+
+        this.jdbcTemplate =
+                jdbcTemplate;
+
+        this.objectMapper =
+                objectMapper;
+    }
+
+    /*
+     * ==========================================================
+     * Latest Import
+     * ==========================================================
+     */
+
+    public long findLatestImportJobId() {
+
+        String sql =
+                """
+                SELECT import_job_id
+                FROM import_job
+                WHERE status='COMPLETED'
+                ORDER BY completed_at DESC
+                LIMIT 1
+                """;
+
+        Long id =
+                jdbcTemplate.queryForObject(
+                        sql,
+                        new MapSqlParameterSource(),
+                        Long.class);
+
+        return id == null ? 0 : id;
+    }
+
+    /*
+     * ==========================================================
+     * Generic Aggregation
+     * ==========================================================
+     */
+
+    public List<DashboardDataPoint> findAggregation(
+            long importJobId,
+            String aggregationCode,
+            DashboardFilter filter) {
+
+        String sql =
+                """
+                SELECT
+                    category,
+                    series,
+                    sub_category,
+                    metric_value,
+                    secondary_value,
+                    tertiary_value,
+                    sort_order,
+                    payload
+                FROM dashboard_result
+                WHERE import_job_id=:importJobId
+                AND aggregation_code=:aggregationCode
+                ORDER BY sort_order,
+                         metric_value DESC
+                """;
+
+        MapSqlParameterSource parameters =
+                new MapSqlParameterSource();
+
+        parameters.addValue(
+                "importJobId",
+                importJobId);
+
+        parameters.addValue(
+                "aggregationCode",
+                aggregationCode);
+
+        return jdbcTemplate.query(
+                sql,
+                parameters,
+                (rs, row) ->
+
+                        new DashboardDataPoint(
+
+                                rs.getString("category"),
+
+                                rs.getString("series"),
+
+                                rs.getString("sub_category"),
+
+                                rs.getBigDecimal("metric_value"),
+
+                                rs.getBigDecimal("secondary_value"),
+
+                                rs.getBigDecimal("tertiary_value"),
+
+                                rs.getInt("sort_order"),
+
+                                parsePayload(
+                                        rs.getString("payload"))
+
+                        )
+
+        );
+    }
+
+    /*
+     * ==========================================================
+     * JAWS
+     * ==========================================================
+     */
+
+    public BigDecimal findJawsRatio(
+            long importJobId,
+            DashboardFilter filter) {
+
+        List<DashboardDataPoint> list =
+                findAggregation(
+                        importJobId,
+                        "JAWS_RATIO",
+                        filter);
+
+        if (list.isEmpty()) {
+
+            return BigDecimal.ZERO;
+
+        }
+
+        return list.get(0).value();
+    }
+
+    /*
+     * ==========================================================
+     * Wrapper Methods
+     * ==========================================================
+     */
+
+    public List<DashboardDataPoint> findRiskPosture(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "RISK_POSTURE",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findSeverityDistribution(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "SEVERITY_DISTRIBUTION",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findTopTechnology(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "TOP_TECH_STACK",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findTopServices(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "TOP_SERVICES",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findForecast(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "FORECAST",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findRepeatAnalysis(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "REPEAT_ANALYSIS",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findTimeliness(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "TIMELINESS",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findExplorer(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "EXPLORER",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findItso(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "ITSO",
+                filter);
+    }
+
+    public List<DashboardDataPoint> findSsp(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return findAggregation(
+                importJobId,
+                "SSP",
+                filter);
+    }
+
+    /*
+     * ==========================================================
+     * Executive Insights
+     * ==========================================================
+     */
+
+    public List<String> findInsights(
+            long importJobId) {
+
+        return List.of(
+                "Dashboard generated successfully.",
+                "Import Job : " + importJobId
+        );
+    }
+
+    /*
+     * ==========================================================
+     * Filters
+     * ==========================================================
+     */
+
+    public Map<String,List<String>> findFilters() {
+
+        Map<String,List<String>> map =
+                new LinkedHashMap<>();
+
+        map.put(
+                "severity",
+
+                jdbcTemplate.queryForList(
+                        """
+                        SELECT DISTINCT severity
+                        FROM vulnerability_finding
+                        ORDER BY severity
+                        """,
+                        new MapSqlParameterSource(),
+                        String.class)
+        );
+
+        map.put(
+                "technology",
+
+                jdbcTemplate.queryForList(
+                        """
+                        SELECT DISTINCT technology
+                        FROM vulnerability_finding
+                        WHERE technology IS NOT NULL
+                        ORDER BY technology
+                        """,
+                        new MapSqlParameterSource(),
+                        String.class)
+        );
+
+        map.put(
+                "service",
+
+                jdbcTemplate.queryForList(
+                        """
+                        SELECT DISTINCT service_name
+                        FROM vulnerability_finding
+                        WHERE service_name IS NOT NULL
+                        ORDER BY service_name
+                        """,
+                        new MapSqlParameterSource(),
+                        String.class)
+        );
+
+        return map;
+    }
+
+    /*
+     * ==========================================================
+     * Helpers
+     * ==========================================================
+     */
+
+    private JsonNode parsePayload(
+            String json) {
+
+        if (json == null) {
+
+            return null;
+
+        }
+
+        try {
+
+            return objectMapper.readTree(
+                    json);
+
+        } catch (Exception ex) {
+
+            throw new RuntimeException(
+                    ex);
+
+        }
+    }
+
+}

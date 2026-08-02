@@ -1,0 +1,184 @@
+import client from "./ApiClient";
+
+import { ApiEndpoints }
+        from "../config/ApiEndpoints";
+
+import type {
+    DashboardFilter,
+    ExecutiveDashboardResponse,
+    DashboardDataPoint,
+    KpiValue
+} from "../model/dashboard";
+
+export default class DashboardApi {
+
+    static async getLatestExecutiveDashboard(
+        filter: DashboardFilter
+    ): Promise<ExecutiveDashboardResponse> {
+
+        const response =
+            await client.post<ExecutiveDashboardResponse>(
+                ApiEndpoints.dashboard.latestExecutive,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getExecutiveDashboard(
+        importJobId: number,
+        filter: DashboardFilter
+    ): Promise<ExecutiveDashboardResponse> {
+
+        const response =
+            await client.post<ExecutiveDashboardResponse>(
+                ApiEndpoints.dashboard.executive(
+                    importJobId),
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getRiskPosture(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.riskPosture,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getSeverityDistribution(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.severityDistribution,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getTopTechnology(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.topTechnology,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getTopServices(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.topServices,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getForecast(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.forecast,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getRepeatAnalysis(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.repeatAnalysis,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getTimeliness(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.timeliness,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getExplorer(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.explorer,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getITSO(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.itso,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getSSP(
+        filter: DashboardFilter
+    ): Promise<DashboardDataPoint[]> {
+
+        const response =
+            await client.post<DashboardDataPoint[]>(
+                ApiEndpoints.dashboard.ssp,
+                filter
+            );
+
+        return response.data;
+    }
+
+    static async getFilters()
+        : Promise<Record<string, string[]>> {
+
+        const response =
+            await client.get<Record<string, string[]>>(
+                ApiEndpoints.dashboard.filters
+            );
+
+        return response.data;
+    }
+
+}

@@ -1,0 +1,191 @@
+@Service
+@Transactional(readOnly = true)
+public class DashboardQueryService {
+
+    private final DashboardQueryRepository repository;
+
+    public DashboardQueryService(
+            DashboardQueryRepository repository) {
+
+        this.repository = repository;
+    }
+
+    /*
+     * ===========================================================
+     * Executive Dashboard
+     * ===========================================================
+     */
+
+    public ExecutiveDashboardResponse latestExecutive(
+            DashboardFilter filter) {
+
+        long importJobId =
+                repository.findLatestImportJobId();
+
+        return executive(
+                importJobId,
+                filter);
+    }
+
+    public ExecutiveDashboardResponse executive(
+            long importJobId,
+            DashboardFilter filter) {
+
+        return ExecutiveDashboardResponse.builder()
+
+                .importJobId(importJobId)
+
+                .jawsRatio(
+                        repository.findJawsRatio(
+                                importJobId,
+                                filter))
+
+                .riskPosture(
+                        repository.findRiskPosture(
+                                importJobId,
+                                filter))
+
+                .severityDistribution(
+                        repository.findSeverityDistribution(
+                                importJobId,
+                                filter))
+
+                .topTechnology(
+                        repository.findTopTechnology(
+                                importJobId,
+                                filter))
+
+                .topServices(
+                        repository.findTopServices(
+                                importJobId,
+                                filter))
+
+                .forecast(
+                        repository.findForecast(
+                                importJobId,
+                                filter))
+
+                .repeatAnalysis(
+                        repository.findRepeatAnalysis(
+                                importJobId,
+                                filter))
+
+                .timeliness(
+                        repository.findTimeliness(
+                                importJobId,
+                                filter))
+
+                .explorer(
+                        repository.findExplorer(
+                                importJobId,
+                                filter))
+
+                .itso(
+                        repository.findItso(
+                                importJobId,
+                                filter))
+
+                .ssp(
+                        repository.findSsp(
+                                importJobId,
+                                filter))
+
+                .insights(
+                        repository.findInsights(
+                                importJobId))
+
+                .build();
+    }
+
+    /*
+     * ===========================================================
+     * Individual Dashboard APIs
+     * ===========================================================
+     */
+
+    public List<DashboardDataPoint> riskPosture(
+            DashboardFilter filter) {
+
+        return repository.findRiskPosture(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> severityDistribution(
+            DashboardFilter filter) {
+
+        return repository.findSeverityDistribution(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> topTechnology(
+            DashboardFilter filter) {
+
+        return repository.findTopTechnology(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> topServices(
+            DashboardFilter filter) {
+
+        return repository.findTopServices(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> forecast(
+            DashboardFilter filter) {
+
+        return repository.findForecast(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> repeatAnalysis(
+            DashboardFilter filter) {
+
+        return repository.findRepeatAnalysis(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> timeliness(
+            DashboardFilter filter) {
+
+        return repository.findTimeliness(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> explorer(
+            DashboardFilter filter) {
+
+        return repository.findExplorer(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> itso(
+            DashboardFilter filter) {
+
+        return repository.findItso(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public List<DashboardDataPoint> ssp(
+            DashboardFilter filter) {
+
+        return repository.findSsp(
+                repository.findLatestImportJobId(),
+                filter);
+    }
+
+    public Map<String,List<String>> filters() {
+
+        return repository.findFilters();
+    }
+
+}

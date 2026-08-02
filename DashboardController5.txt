@@ -1,0 +1,203 @@
+package com.msys.vulnerability.dashboard.controller;
+
+import com.msys.vulnerability.dashboard.dto.DashboardDataPoint;
+import com.msys.vulnerability.dashboard.dto.DashboardFilter;
+import com.msys.vulnerability.dashboard.dto.ExecutiveDashboardResponse;
+import com.msys.vulnerability.dashboard.service.DashboardQueryService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/dashboard")
+public class DashboardController {
+
+    private final DashboardQueryService dashboardQueryService;
+
+    public DashboardController(
+            DashboardQueryService dashboardQueryService) {
+
+        this.dashboardQueryService =
+                dashboardQueryService;
+    }
+
+    /*
+     * ============================================================
+     * Executive Dashboard
+     * ============================================================
+     */
+
+    @PostMapping("/latest/executive")
+    public ExecutiveDashboardResponse latestExecutive(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .latestExecutive(filter);
+    }
+
+    @PostMapping("/imports/{importJobId}/executive")
+    public ExecutiveDashboardResponse executive(
+            @PathVariable long importJobId,
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .executive(
+                        importJobId,
+                        filter);
+    }
+
+    /*
+     * ============================================================
+     * Risk Posture
+     * ============================================================
+     */
+
+    @PostMapping("/latest/risk-posture")
+    public List<DashboardDataPoint> riskPosture(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .riskPosture(filter);
+    }
+
+    /*
+     * ============================================================
+     * Severity Distribution
+     * ============================================================
+     */
+
+    @PostMapping("/latest/severity-distribution")
+    public List<DashboardDataPoint> severityDistribution(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .severityDistribution(filter);
+    }
+
+    /*
+     * ============================================================
+     * Top Technology
+     * ============================================================
+     */
+
+    @PostMapping("/latest/top-technology")
+    public List<DashboardDataPoint> topTechnology(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .topTechnology(filter);
+    }
+
+    /*
+     * ============================================================
+     * Top Services
+     * ============================================================
+     */
+
+    @PostMapping("/latest/top-services")
+    public List<DashboardDataPoint> topServices(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .topServices(filter);
+    }
+
+    /*
+     * ============================================================
+     * Forecast
+     * ============================================================
+     */
+
+    @PostMapping("/latest/forecast")
+    public List<DashboardDataPoint> forecast(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .forecast(filter);
+    }
+
+    /*
+     * ============================================================
+     * Repeat Analysis
+     * ============================================================
+     */
+
+    @PostMapping("/latest/repeat-analysis")
+    public List<DashboardDataPoint> repeatAnalysis(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .repeatAnalysis(filter);
+    }
+
+    /*
+     * ============================================================
+     * Timeliness
+     * ============================================================
+     */
+
+    @PostMapping("/latest/timeliness")
+    public List<DashboardDataPoint> timeliness(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .timeliness(filter);
+    }
+
+    /*
+     * ============================================================
+     * Explorer
+     * ============================================================
+     */
+
+    @PostMapping("/latest/explorer")
+    public List<DashboardDataPoint> explorer(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .explorer(filter);
+    }
+
+    /*
+     * ============================================================
+     * ITSO
+     * ============================================================
+     */
+
+    @PostMapping("/latest/itso")
+    public List<DashboardDataPoint> itso(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .itso(filter);
+    }
+
+    /*
+     * ============================================================
+     * SSP
+     * ============================================================
+     */
+
+    @PostMapping("/latest/ssp")
+    public List<DashboardDataPoint> ssp(
+            @RequestBody DashboardFilter filter) {
+
+        return dashboardQueryService
+                .ssp(filter);
+    }
+
+    /*
+     * ============================================================
+     * Filter Values
+     * ============================================================
+     */
+
+    @GetMapping("/filters")
+    public Map<String, List<String>> filters() {
+
+        return dashboardQueryService
+                .filters();
+    }
+
+}
